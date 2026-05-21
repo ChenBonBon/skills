@@ -1,0 +1,7 @@
+interface:
+  display_name: "财报提取"
+  short_description: "调用 ocr 识别财报图片或 PDF"
+  default_prompt: "Use $financial-report-extraction to run ocr on this uploaded financial-report image or PDF and inspect the OCR response."
+
+policy:
+  allow_implicit_invocation: true
