@@ -1,7 +1,7 @@
 interface:
   display_name: "财报提取"
   short_description: "OCR 抽取、勾稽校验、标准化、校验并输出标准表"
-  default_prompt: "Use $financial-report-extraction to OCR this uploaded financial-report image or PDF, map vlm_text into JSON, run reconciliation checks when applicable, offer correction or Excel editing when original-table validation fails, map subjects, call convert_to_standard_table, save standard_table.json, call validate_standard_table, then call standard_table_to_excel after standard-table validation passes."
+  default_prompt: "Use $financial-report-extraction to OCR this uploaded financial-report image or PDF, extract vlm_text into original-table JSON, validate it, standardize it, and output the final standard-table Excel."
 
 policy:
   allow_implicit_invocation: true
