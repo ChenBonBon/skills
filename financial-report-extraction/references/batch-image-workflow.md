@@ -1,28 +1,35 @@
-# Batch Image Workflow
+# Batch File Workflow
 
-Use this reference only when the user uploads multiple images.
+Use this reference only when the user uploads multiple images and/or PDFs.
 
 This version supports:
 
-- `n` images for `n` financial statements.
-- `m` images for `n` financial statements where `m > n`, meaning multiple images may form one statement.
+- `n` files for `n` financial statements.
+- `m` files for `n` financial statements where `m > n`, meaning multiple files may form one statement.
+- one single-page PDF for one statement.
+- one multi-page PDF for one statement.
+- one multi-page PDF for multiple statements.
+- files may be images or PDFs.
 
 This version does not support one image containing multiple statement units. If OCR indicates one image contains multiple target statements, ask the user to split the image or confirm which one statement to process.
 
-## OCR All Images First
+PDFs may contain multiple statement units. Split a PDF into statement groups only from `vlm_text`; do not use page images, OCR metadata, or file names as extraction evidence.
 
-1. Call `ocr` for every uploaded image before deciding groups.
+## OCR All Files First
+
+1. Call `ocr` for every uploaded image/PDF before deciding groups.
 2. Preserve each raw OCR response in session state.
 3. Use only each response's `vlm_text` string array for downstream grouping and extraction.
-4. If any image has missing or invalid `vlm_text`, pause and ask the user to re-upload or confirm manually.
+4. If any file has missing or invalid `vlm_text`, pause and ask the user to re-upload or confirm manually.
 
-## Group And Order Images
+## Group And Order Files
 
-After all OCR calls finish, group images into statement units. Each image may belong to only one group.
+After all OCR calls finish, group files into statement units. Each image may belong to only one group. A PDF may produce one group or multiple groups when `vlm_text` clearly contains multiple statement units.
 
 Use OCR text clues to infer both group membership and order within each group:
 
 - explicit table name,
+- repeated explicit table names inside one PDF,
 - 编制单位,
 - 日期 / 期间,
 - 单位,
@@ -44,11 +51,18 @@ The normalized internal shape is:
 }
 ```
 
-Each inner array is one complete statement's `vlm_text`. If a group contains multiple images, concatenate their `vlm_text` arrays in the confirmed group order.
+Each inner array is one complete statement's `vlm_text`. If a group contains multiple files, concatenate their `vlm_text` arrays in the confirmed group order.
+
+PDF handling:
+
+- Single-page PDF for one statement: one group with that PDF's `vlm_text`.
+- Multi-page PDF for one statement: one group with that PDF statement's full `vlm_text` in OCR order.
+- Multi-page PDF for multiple statements: split the PDF `vlm_text` into one group per statement unit. Use explicit boundaries such as `资产负债表`, `利润表`/`损益表`, `现金流量表`, repeated `编制单位`, repeated `日期`/`单位`, and final-row markers.
+- If the split is ambiguous, ask the user to confirm the statement boundaries before processing.
 
 ## User Confirmation
 
-Always ask the user to confirm the inferred groups in this first batch-image version.
+Always ask the user to confirm the inferred groups in this first batch-file version.
 
 Show a concise table:
 
@@ -56,20 +70,22 @@ Show a concise table:
 |---|---:|---|---|---|---|---|
 | 1 | 1 | B.png | 资产负债表 | ... | ... | 表头和资产部分 |
 | 1 | 2 | A.png | 资产负债表 | ... | ... | 负债和权益部分 |
-| 2 | 1 | C.png | 利润表 | ... | ... | 单图完整表 |
+| 2 | 1 | C.pdf | 利润表 | ... | ... | PDF 第 1 个报表单元 |
+| 3 | 1 | C.pdf | 现金流量表 | ... | ... | PDF 第 2 个报表单元 |
 
 The user may reply:
 
 - `确认`
 - `调整顺序：第1组 B.png,A.png`
 - `调整分组：第1组 B.png,A.png；第2组 C.png`
+- `调整PDF拆分：第1组 C.pdf 资产负债表；第2组 C.pdf 利润表`
 - `取消` or `重新上传`
 
 After confirmation, use the confirmed group order to build `statement_vlm_texts`.
 
 ## Batch Manifest
 
-For any multi-image upload, create a batch directory:
+For any multi-file upload or single PDF containing multiple statements, create a batch directory:
 
 ```text
 workspace/{username}/result/{batch_stem}_batch/
@@ -84,7 +100,7 @@ workspace/{username}/result/{batch_stem}_batch/{group_first_file_stem}_group_1/
 workspace/{username}/result/{batch_stem}_batch/{group_first_file_stem}_group_2/
 ```
 
-`batch_stem` should be stable for the upload batch. Prefer the first file in the confirmed first group. Each `group_first_file_stem` comes from the first file in that confirmed group.
+`batch_stem` should be stable for the upload batch. Prefer the first file in the confirmed first group. Each `group_first_file_stem` comes from the first file in that confirmed group. When one PDF produces multiple groups, use the same PDF stem plus each group index to keep task directories unique.
 
 ## Serial Processing
 

@@ -17,11 +17,12 @@ def prepare_batch_manifest(
     batch_dir: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Create a batch manifest for multi-image financial statement extraction.
+    Create a batch manifest for multi-file financial statement extraction.
+    A PDF may appear in multiple groups when it contains multiple statement units.
 
     Each group must contain:
     - group_index: 1-based integer
-    - source_files: ordered list of image file names
+    - source_files: ordered list of image/PDF file names
     - statement_type: detected statement type, may be empty before mapping
 
     :param groups: confirmed statement groups in processing order
