@@ -1,17 +1,19 @@
 ---
 name: financial-report-extraction
-description: Extract, validate, standardize, and output a standard-table Excel for one uploaded financial statement image or PDF. Use when the user mentions 财报提取, 财报 OCR, 资产负债表, 利润表, 损益表, 现金流量表, 勾稽关系, 标准科目映射, 标准表校验, annual reports, quarterly reports, prospectuses, financial statements, or asks to recognize/extract/validate/standardize financial-report images or PDFs.
+description: Extract, validate, standardize, and output standard-table Excel files for one or more uploaded financial statement images. Supports single-image statements and multi-image statement groups; PDF support is a later workflow. Use when the user mentions 财报提取, 财报 OCR, 批量图片, 资产负债表, 利润表, 损益表, 现金流量表, 勾稽关系, 标准科目映射, 标准表校验, annual reports, quarterly reports, prospectuses, financial statements, or asks to recognize/extract/validate/standardize financial-report images.
 ---
 
 # 财报提取
 
 ## Core Contract
 
-Use this skill for one uploaded image or PDF containing one financial-statement table:
+Use this skill for one or more uploaded images containing financial-statement tables:
 
 - 资产负债表
 - 利润表 / 损益表
 - 现金流量表
+
+Current batch-image version supports one image per statement or multiple images per statement. It does not support one image containing multiple statement units. PDF support is intentionally out of scope for this iteration.
 
 Always call the system tool named `ocr` first. The OCR output structure is stable; downstream extraction uses only `ocr.vlm_text`.
 
@@ -21,17 +23,37 @@ If `vlm_text` is missing, is not a string array, or cannot be joined into readab
 
 ### 1. OCR
 
-1. Confirm the upload is an image or PDF.
-2. Call `ocr`.
-3. Read only `vlm_text`.
-4. Join `vlm_text` in original order with newline separators.
-5. Preserve the raw OCR response in session state.
+1. Confirm the upload contains image files. If the user uploads PDF files, explain that PDF handling is not part of this iteration and ask for image uploads or wait for the PDF workflow.
+2. Call `ocr` for every uploaded image before downstream extraction.
+3. Read only each OCR response's `vlm_text`.
+4. Preserve every raw OCR response in session state.
 
 If the user asked only for OCR, summarize the recognized content and stop.
 
-### 2. Map `vlm_text` To Original JSON
+### 1.5. Normalize Batch OCR Results
 
-Map only from the joined `vlm_text`. Do not infer from the image, PDF, file name, OCR metadata, or non-`vlm_text` fields.
+If the user uploaded multiple images, read `references/batch-image-workflow.md`.
+
+Group and order images based on OCR text, not upload order. Ask the user to confirm the inferred groups and order. After confirmation, normalize OCR results into:
+
+```json
+{
+  "statement_vlm_texts": [
+    ["报表1第1段", "报表1第2段"],
+    ["报表2第1段"]
+  ]
+}
+```
+
+For a single image, `statement_vlm_texts` has one inner array containing that image's `vlm_text`.
+
+For multi-image uploads, create `batch_manifest.json` with `scripts/prepare_batch_manifest.py` after the user confirms groups.
+
+### 2. Map Statement `vlm_text` To Original JSON
+
+Process each confirmed statement group serially. For each group, join its inner `vlm_text` array in original confirmed group order with newline separators.
+
+Map only from the joined statement `vlm_text`. Do not infer from the image, file name, OCR metadata, or non-`vlm_text` fields.
 
 Identify the statement type from explicit text, then produce the matching original-table JSON schema. See `references/target-json-schema.md` only when mapping or validating this JSON shape.
 
@@ -76,15 +98,19 @@ If validation passes, continue automatically. If it fails, read `references/stan
 
 After standard-table validation passes, call `standard_table_to_excel`.
 
-On success, output exactly:
+For a single statement group, on success output exactly:
 
 **标准表校验通过**
+
+For multiple statement groups, output a contextual success line for each group and continue to the next group. After all groups succeed, output the batch summary defined in `references/batch-image-workflow.md`.
 
 ## Session State
 
 Preserve these values across turns while this skill is active:
 
 - raw OCR response and joined `vlm_text`
+- `statement_vlm_texts`
+- batch manifest path, batch groups, current group index, and completed groups for multi-image uploads
 - mapped original-table JSON
 - original uploaded file name
 - reconciliation failures and correction plan, if any
@@ -99,7 +125,11 @@ When the user says `继续`, `已保存`, `保存好了`, or `编辑好了`, con
 
 - Do not invent OCR text, financial figures, dates, units, rows, columns, or mappings.
 - Do not use OCR fields other than `vlm_text` for extraction.
-- Do not process multiple target tables from one upload without asking which table to extract.
+- Do not process multiple images before the user confirms inferred statement groups and group order.
+- Do not support one image split into multiple statement units in this iteration; ask the user to split the image or confirm one statement to process.
+- Do not rely on upload order for batch grouping or group order.
+- Do not rerun completed groups when a later batch group pauses or is replaced.
+- For re-upload replacement in a batch, require the user to specify which report group is being replaced unless there is exactly one paused current group.
 - Do not continue after failed reconciliation or failed standard-table validation.
 - Do not wrap successful JSON-only output in Markdown.
 - Do not tell the user to download, upload, re-upload, or send back a generated Excel when the platform editing flow applies.
