@@ -1,0 +1,7 @@
+interface:
+  display_name: "财报提取（中文）"
+  short_description: "批量图片/PDF OCR、勾稽校验、标准化并输出标准表"
+  default_prompt: "使用 $financial-report-extraction-zh 对上传的财务报表图片或 PDF 进行 OCR；必要时将多个文件分组并排序为报表单元，先请用户确认分组；随后把每张报表的 vlm_text 映射为 JSON、执行校验、标准化，并输出标准表 Excel 文件。"
+
+policy:
+  allow_implicit_invocation: true
