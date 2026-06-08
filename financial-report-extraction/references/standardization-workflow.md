@@ -4,13 +4,13 @@ Use this reference only after original-table JSON is validated or after standard
 
 ## Task Directory
 
-Resolve the task output directory as:
+Use the Step 0 task output directory:
 
 ```text
-workspace/{username}/result/{original_filename_stem}/
+workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 ```
 
-If the exact workspace root is unavailable, use the current runtime context. Do not write production outputs to a temporary directory.
+This directory is created once with `scripts/task_outputs.py` before the first file is written. Reuse the remembered `task_dir` for all JSON and Excel outputs in this run. If the exact workspace root is unavailable, use the current runtime context. Do not write production outputs to a temporary directory.
 
 ## Subject Mapping
 
@@ -43,18 +43,21 @@ prepare_standard_mapping_files(
     subject_mapping,
     original_filename,
     result_root=None,
-    task_dir=None,
+    task_dir=task_dir,
     standard_subjects=None,
+    file_prefix="",
 )
 ```
 
+For multi-statement batches, keep the same `task_dir` and pass each group's manifest `file_prefix` such as `group_1_`.
+
 Use returned paths directly for `convert_to_standard_table`:
 
-- `original_table_json_file_path`: returned `original_validated.json`
-- `subject_mapping_json_file_path`: returned `subject_mapping.json`
+- `original_table_json_file_path`: returned original-table JSON path
+- `subject_mapping_json_file_path`: returned subject-mapping JSON path
 - `rpt_type`: `1` for `资产负债表`, `2` for `利润表` / `损益表`, `3` for `现金流量表`
 
-Save the returned standard-table JSON with `scripts/save_standard_table.py`.
+Save the returned standard-table JSON with `scripts/save_standard_table.py` using the same `task_dir` and the same group `file_prefix`, if any.
 
 ## Validate Standard Table
 

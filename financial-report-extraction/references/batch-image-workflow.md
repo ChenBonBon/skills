@@ -18,9 +18,11 @@ PDFs may contain multiple statement units. Split a PDF into statement groups onl
 ## OCR All Files First
 
 1. Call `ocr` for every uploaded image/PDF before deciding groups.
-2. Preserve each raw OCR response in session state.
-3. Use only each response's `vlm_text` string array for downstream grouping and extraction.
-4. If any file has missing or invalid `vlm_text`, pause and ask the user to re-upload or confirm manually.
+2. Immediately save the exact OCR tool return objects to `ocr_results.json` in the Step 0 task output directory.
+3. Do not save summarized, normalized, shortened, reconstructed, or placeholder OCR content.
+4. Preserve each raw OCR response and the `ocr_results.json` path in session state.
+5. Use only each response's `vlm_text` string array for downstream grouping and extraction.
+6. If any file has missing or invalid `vlm_text`, pause and ask the user to re-upload or confirm manually.
 
 ## Group And Order Files
 
@@ -85,22 +87,26 @@ After confirmation, use the confirmed group order to build `statement_vlm_texts`
 
 ## Batch Manifest
 
-For any multi-file upload or single PDF containing multiple statements, create a batch directory:
+For any multi-file upload or single PDF containing multiple statements, use the Step 0 task output directory:
 
 ```text
-workspace/{username}/result/{batch_stem}_batch/
+workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 ```
 
-Create `batch_manifest.json` in that directory with `scripts/prepare_batch_manifest.py`.
+Create `batch_manifest.json` in that directory with `scripts/prepare_batch_manifest.py`. Pass the remembered `task_dir` as `batch_dir`.
 
-Use group task directories:
+All batch files stay in the same task directory. Use each group's manifest `file_prefix` for group-specific JSON files:
 
 ```text
-workspace/{username}/result/{batch_stem}_batch/{group_first_file_stem}_group_1/
-workspace/{username}/result/{batch_stem}_batch/{group_first_file_stem}_group_2/
+group_1_original_validated.json
+group_1_subject_mapping.json
+group_1_standard_table.json
+group_2_original_validated.json
+group_2_subject_mapping.json
+group_2_standard_table.json
 ```
 
-`batch_stem` should be stable for the upload batch. Prefer the first file in the confirmed first group. Each `group_first_file_stem` comes from the first file in that confirmed group. When one PDF produces multiple groups, use the same PDF stem plus each group index to keep task directories unique.
+`original_filename_stem` should be stable for the upload batch. Prefer the first file in the confirmed first group.
 
 ## Serial Processing
 

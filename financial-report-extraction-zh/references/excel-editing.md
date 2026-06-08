@@ -10,7 +10,7 @@
 json_data_to_excel(
     vlm_text,
     original_filename,
-    json_out_dir=None,
+    json_out_dir=task_dir,
     sheet_name="Sheet1",
     abnormal_items=None,
 )
@@ -18,11 +18,11 @@ json_data_to_excel(
 
 - `vlm_text`：映射得到的原始表 JSON，序列化时保留中文文本。
 - `original_filename`：上传文件名，用于派生 Excel 文件名。
-- `json_out_dir`：任务输出目录，通常为 `workspace/{username}/result/{original_filename_stem}/`。
+- `json_out_dir`：步骤 0 的任务输出目录，即 `workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/`。
 - `sheet_name`：优先使用映射得到的 `表名`。
 - `abnormal_items`：勾稽异常行，优先使用字典形式。
 
-如果省略 `json_out_dir`，脚本会写入 `./result/{original_filename_stem}/`。
+始终传入已记住的 `task_dir`。如果省略 `json_out_dir`，脚本会创建新的带时间戳目录；skill 流程中应避免这种情况。
 
 工作簿应高亮异常行或异常单元格。不要包含原始 OCR 文本、OCR 元数据或内部勾稽结构。
 

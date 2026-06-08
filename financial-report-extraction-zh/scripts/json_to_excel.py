@@ -7,6 +7,11 @@ from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+try:
+    from task_outputs import create_task_output_dir
+except ImportError:
+    from .task_outputs import create_task_output_dir
+
 
 def _normalize_text(value: Any) -> str:
     return "" if value is None else str(value).strip()
@@ -96,7 +101,7 @@ def json_data_to_excel(
 
     :param vlm_text: JSON 格式的字符串，包含表名、编制单位、日期、单位、表格数据
     :param original_filename: 原始文件名，用于构建输出路径
-    :param json_out_dir: Excel 文件输出目录，默认当前工作目录下的 result 目录
+    :param json_out_dir: Excel 文件输出目录，默认当前工作目录下带时间戳的 result 任务目录
     :param sheet_name: 工作表名称，默认为 "Sheet1"
     :param abnormal_items: 勾稽失败异常项列表，用于高亮涉及的科目行或金额单元格
     """
@@ -107,7 +112,7 @@ def json_data_to_excel(
     original_stem = os.path.splitext(os.path.basename(original_filename))[0]
 
     if json_out_dir is None:
-        json_out_dir = os.path.join(os.getcwd(), "result", original_stem)
+        json_out_dir = create_task_output_dir(original_filename)["task_dir"]
 
     # 确保输出目录存在
     os.makedirs(json_out_dir, exist_ok=True)

@@ -4,13 +4,13 @@
 
 ## 任务目录
 
-任务输出目录解析为：
+使用步骤 0 创建的任务输出目录：
 
 ```text
-workspace/{username}/result/{original_filename_stem}/
+workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 ```
 
-如果无法获得准确的 workspace 根目录，使用当前运行时上下文。不要把生产输出写入临时目录。
+该目录由 `scripts/task_outputs.py` 在第一次写入文件前创建一次。整个运行过程中复用已记住的 `task_dir` 来保存所有 JSON 和 Excel 输出。如果无法获得准确的 workspace 根目录，使用当前运行时上下文。不要把生产输出写入临时目录。
 
 ## 科目映射
 
@@ -43,18 +43,21 @@ prepare_standard_mapping_files(
     subject_mapping,
     original_filename,
     result_root=None,
-    task_dir=None,
+    task_dir=task_dir,
     standard_subjects=None,
+    file_prefix="",
 )
 ```
 
+对于多报表批量场景，保持同一个 `task_dir`，并传入该组 manifest 中的 `file_prefix`，例如 `group_1_`。
+
 将返回路径直接用于 `convert_to_standard_table`：
 
-- `original_table_json_file_path`: 返回的 `original_validated.json`
-- `subject_mapping_json_file_path`: 返回的 `subject_mapping.json`
+- `original_table_json_file_path`: 返回的原始表 JSON 路径
+- `subject_mapping_json_file_path`: 返回的科目映射 JSON 路径
 - `rpt_type`: `1` 表示 `资产负债表`，`2` 表示 `利润表` / `损益表`，`3` 表示 `现金流量表`
 
-使用 `scripts/save_standard_table.py` 保存返回的标准表 JSON。
+使用 `scripts/save_standard_table.py` 保存返回的标准表 JSON，并传入同一个 `task_dir` 和同一个组 `file_prefix`（如有）。
 
 ## 校验标准表
 

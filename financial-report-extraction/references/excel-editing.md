@@ -10,7 +10,7 @@ Call `scripts/json_to_excel.py` with the Step 2 JSON serialized as a string:
 json_data_to_excel(
     vlm_text,
     original_filename,
-    json_out_dir=None,
+    json_out_dir=task_dir,
     sheet_name="Sheet1",
     abnormal_items=None,
 )
@@ -18,11 +18,11 @@ json_data_to_excel(
 
 - `vlm_text`: the mapped original-table JSON serialized with Chinese text preserved.
 - `original_filename`: uploaded file name, used to derive the Excel file name.
-- `json_out_dir`: task output directory, normally `workspace/{username}/result/{original_filename_stem}/`.
+- `json_out_dir`: the Step 0 task output directory, `workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/`.
 - `sheet_name`: prefer the mapped `表名`.
 - `abnormal_items`: reconciliation abnormal rows, preferably as dictionaries.
 
-If `json_out_dir` is omitted, the script writes to `./result/{original_filename_stem}/`.
+Always pass the remembered `task_dir`. If `json_out_dir` is omitted, the script creates a new timestamped directory, which should be avoided during the skill workflow.
 
 The workbook should highlight abnormal rows or cells. Do not include raw OCR text, OCR metadata, or internal reconciliation structures.
 

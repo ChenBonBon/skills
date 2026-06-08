@@ -29,12 +29,33 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 
 ## 工作流
 
+### 0. 创建任务输出目录
+
+在第一次写入文件之前，使用 `scripts/task_outputs.py` 创建一个全局任务输出目录：
+
+```python
+create_task_output_dir(original_filename, result_root=None, timestamp=None)
+```
+
+本次运行中所有需要写入的文件都使用返回的 `task_dir`。默认路径为：
+
+```text
+workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
+```
+
+系统时间戳只生成一次，后续步骤复用同一个 `task_dir`；不要在后续步骤创建新的带时间戳目录。
+
+- 单文件上传时，用该文件名在 OCR 前创建 `task_dir`。
+- 多文件上传时，如果平台提供批次名，使用批次名创建 `task_dir`；否则使用第一个上传源文件名。不要等分组确认后才创建 `task_dir`，因为原始 OCR 必须在模型有机会总结压缩前就落盘。
+
 ### 1. OCR
 
 1. 确认上传内容包含图片或 PDF 文件。
 2. 对每个上传文件先调用 `ocr`，再进行后续提取。
 3. 只读取每个 OCR 响应中的 `vlm_text`。
-4. 在会话状态中保留每个原始 OCR 响应。
+4. 每次 OCR 调用返回后，立即把 OCR 工具的原始返回对象追加到原始 OCR 响应列表，并用 `scripts/task_outputs.py` 将该未修改列表保存到 `task_dir` 下的 `ocr_results.json`。
+5. 不要总结、脱敏、缩短、规范化、重构 OCR 内容，也不要用 `see original OCR` 等占位内容替换；`ocr_results.json` 只能包含 OCR 工具的原始输出。
+6. 在会话状态中保留每个原始 OCR 响应和 `ocr_results.json` 路径。
 
 如果用户只要求 OCR，汇总识别内容后停止。
 
@@ -55,7 +76,7 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 
 对于单图片报表，`statement_vlm_texts` 只有一个内层数组，该数组包含这张图片的 `vlm_text`。对于只包含一张报表的单个 PDF，只有一个内层数组，该数组包含该 PDF 报表的 `vlm_text`。对于包含多张报表的 PDF，将该 PDF 的 `vlm_text` 拆成多个内层数组，每个数组对应一个报表单元。
 
-对于多文件上传或包含多张报表的单个 PDF，在用户确认分组后，使用 `scripts/prepare_batch_manifest.py` 创建 `batch_manifest.json`。
+对于多文件上传或包含多张报表的单个 PDF，在用户确认分组后，使用 `scripts/prepare_batch_manifest.py` 创建 `batch_manifest.json`。传入已有的 `task_dir` 作为 `batch_dir`；不要创建单独的批量目录。
 
 ### 2. 将报表 `vlm_text` 映射为原始 JSON
 
@@ -64,6 +85,8 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 只从拼接后的报表 `vlm_text` 进行映射。不要从图片/PDF、文件名、OCR 元数据或非 `vlm_text` 字段推断信息。
 
 从明确文本中识别报表类型，然后生成匹配的原始表 JSON schema。仅在映射或校验 JSON 形状时读取 `references/target-json-schema.md`。
+
+当 `vlm_text` 中对应科目行存在可见金额文本时，不要把金额字段留空。只有来源单元格确实缺失或为空时才使用 `""`；如果可见金额无法安全归入目标列，要求人工确认。
 
 如果用户明确只要求提取 JSON，只输出裸 JSON object，然后停止。
 
@@ -94,11 +117,11 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 - `利润表` / `损益表` -> `references/standard-subject-mapping-income-statement.md`
 - `现金流量表` -> `references/standard-subject-mapping-cash-flow.md`
 
-生成 subject mapping JSON，其 key 必须与运行时原始科目列表完全一致。然后调用 `scripts/prepare_standard_mapping_files.py` 和系统工具 `convert_to_standard_table`。
+生成 subject mapping JSON，其 key 必须与运行时原始科目列表完全一致。然后带着已有的 `task_dir` 调用 `scripts/prepare_standard_mapping_files.py`，再调用系统工具 `convert_to_standard_table`。
 
 ### 6. 标准表校验
 
-使用 `scripts/save_standard_table.py` 保存 `convert_to_standard_table` 的结果，然后调用 `validate_standard_table`。
+使用 `scripts/save_standard_table.py` 将 `convert_to_standard_table` 的结果保存到已有的 `task_dir`，然后调用 `validate_standard_table`。
 
 如果校验通过，自动继续。若校验失败，读取 `references/standardization-workflow.md`，展示规定的失败响应，并等待用户选择修正路径。
 
@@ -117,6 +140,7 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 本 skill 激活期间，跨轮次保留以下值：
 
 - 原始 OCR 响应和拼接后的 `vlm_text`
+- `ocr_results.json` 路径
 - `statement_vlm_texts`
 - 多文件上传场景下的 batch manifest 路径、批量分组、当前组索引、已完成组
 - 映射得到的原始表 JSON
@@ -133,6 +157,10 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 
 - 不要编造 OCR 文本、财务数字、日期、单位、行、列或映射关系。
 - 不要使用 `vlm_text` 之外的 OCR 字段进行提取。
+- 不要把处理后的 OCR 数据写入 `ocr_results.json`；该文件只保存 OCR 工具的原始返回。
+- 不要保存 `...`、`see original OCR`、`truncated` 或 `omitted` 这类 OCR 占位文本。
+- 除非平台工具要求自己的输出路径，否则不要把任务文件写到任务输出目录之外。
+- 步骤 0 后不要创建第二个带时间戳的输出目录；复用已记住的 `task_dir`。
 - 在用户确认推断出的分组和顺序前，不要处理多个报表组。
 - 本版本不要把一张图片拆分成多个报表单元；请用户拆分图片，或确认只处理其中一张报表。
 - 对 PDF，仅使用 `vlm_text` 中明确的报表边界拆分多个报表单元，并在处理前请用户确认拆分。

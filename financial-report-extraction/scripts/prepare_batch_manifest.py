@@ -2,12 +2,10 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
-
-def _stem(filename: str) -> str:
-    value = os.path.splitext(os.path.basename(filename))[0].strip()
-    if not value:
-        raise ValueError("file names must contain non-empty stems")
-    return value
+try:
+    from task_outputs import create_task_output_dir, safe_stem
+except ImportError:
+    from .task_outputs import create_task_output_dir, safe_stem
 
 
 def prepare_batch_manifest(
@@ -15,6 +13,7 @@ def prepare_batch_manifest(
     result_root: Optional[str] = None,
     batch_stem: Optional[str] = None,
     batch_dir: Optional[str] = None,
+    timestamp: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a batch manifest for multi-file financial statement extraction.
@@ -29,6 +28,7 @@ def prepare_batch_manifest(
     :param result_root: workspace result directory, usually workspace/{username}/result
     :param batch_stem: optional stable batch stem
     :param batch_dir: explicit batch directory override
+    :param timestamp: optional timestamp shared with the global task output directory
     :return: manifest dict with batch_dir, manifest_path, and normalized groups
     """
     if not isinstance(groups, list) or not groups:
@@ -54,13 +54,14 @@ def prepare_batch_manifest(
         if not isinstance(statement_type, str):
             raise ValueError("statement_type must be a string")
 
-        group_first_stem = _stem(source_files[0])
+        safe_stem(source_files[0])
         normalized_groups.append(
             {
                 "group_index": group_index,
                 "source_files": source_files,
                 "statement_type": statement_type,
                 "task_dir": "",
+                "file_prefix": f"group_{group_index}_",
                 "status": group.get("status", "pending"),
                 "standard_table_excel": group.get("standard_table_excel", ""),
                 "failure_stage": group.get("failure_stage", ""),
@@ -68,19 +69,17 @@ def prepare_batch_manifest(
         )
 
     if batch_stem is None:
-        batch_stem = _stem(normalized_groups[0]["source_files"][0])
-    if result_root is None:
-        result_root = os.path.join(os.getcwd(), "result")
+        batch_stem = safe_stem(normalized_groups[0]["source_files"][0])
     if batch_dir is None:
-        batch_dir = os.path.join(result_root, f"{batch_stem}_batch")
+        batch_dir = create_task_output_dir(
+            normalized_groups[0]["source_files"][0],
+            result_root=result_root,
+            timestamp=timestamp,
+        )["task_dir"]
 
     os.makedirs(batch_dir, exist_ok=True)
     for group in normalized_groups:
-        group_first_stem = _stem(group["source_files"][0])
-        group["task_dir"] = os.path.join(
-            batch_dir, f"{group_first_stem}_group_{group['group_index']}"
-        )
-        os.makedirs(group["task_dir"], exist_ok=True)
+        group["task_dir"] = batch_dir
 
     manifest = {
         "batch_dir": batch_dir,
