@@ -59,6 +59,16 @@ prepare_standard_mapping_files(
 
 使用 `scripts/save_standard_table.py` 保存返回的标准表 JSON，并传入同一个 `task_dir` 和同一个组 `file_prefix`（如有）。
 
+## 标准表 Excel 输出
+
+当标准表校验通过后调用 `standard_table_to_excel`，或用户选择生成标准表 Excel 查看时：
+
+1. 传入 `standard_table_json_file_path`、`rpt_type`；如果平台工具支持输出目录/输出路径参数，同时传入已记住的 `task_dir`。
+2. Excel 最终必须位于步骤 0 的任务输出目录下。
+3. 如果工具返回的文件路径不在 `task_dir` 下，调用 `scripts/task_outputs.py` 的 `ensure_file_in_task_dir(source_path, task_dir)`，并使用复制后的路径。
+4. 如果工具返回路径缺失或文件不存在，使用 `task_dir` 重新调用该工具（若支持）；否则停止并说明标准表 Excel 输出路径无效。
+5. 将最终位于 `task_dir` 下的 Excel 路径保存到会话状态和批量汇总中。
+
 ## 校验标准表
 
 调用 `validate_standard_table`，参数为：
@@ -99,7 +109,7 @@ C. 重新上传更清晰文件
 ## 标准表修正
 
 - 自动修正路径：对 `standard_table.json` 提出确定、可逆的修正；如果根因是映射，则修正 `subject_mapping.json` 后重新运行转换。
-- 标准表 Excel 路径：调用 `standard_table_to_excel`；这是终端查看/人工复核路径，因为没有标准表 Excel 转 JSON 工具。
+- 标准表 Excel 路径：调用 `standard_table_to_excel`，并遵循上方“标准表 Excel 输出”规则；这是终端查看/人工复核路径，因为没有标准表 Excel 转 JSON 工具。
 - 重新上传路径：从 OCR 重新开始。
 
 只有在 `validate_standard_table` 通过后，才继续最终 Excel 输出。

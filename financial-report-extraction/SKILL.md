@@ -127,7 +127,9 @@ If validation passes, continue automatically. If it fails, read `references/stan
 
 ### 7. Output Standard Table Excel
 
-After standard-table validation passes, call `standard_table_to_excel`.
+After standard-table validation passes, call `standard_table_to_excel`. If the tool accepts an output directory/path argument, pass the remembered `task_dir` so the Excel is generated under the task output directory.
+
+After the tool returns, verify the Excel file path. If the file is outside `task_dir`, use `scripts/task_outputs.py` `ensure_file_in_task_dir(...)` to copy it into `task_dir`, then remember and report the copied path. If the returned path is missing or does not exist, rerun `standard_table_to_excel` with `task_dir`/output directory if supported; otherwise stop and report that the Excel output path is invalid.
 
 For a single statement group, on success output exactly:
 

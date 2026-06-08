@@ -59,6 +59,16 @@ Use returned paths directly for `convert_to_standard_table`:
 
 Save the returned standard-table JSON with `scripts/save_standard_table.py` using the same `task_dir` and the same group `file_prefix`, if any.
 
+## Standard-Table Excel Output
+
+When calling `standard_table_to_excel` after validation passes or when the user chooses standard-table Excel viewing:
+
+1. Pass `standard_table_json_file_path`, `rpt_type`, and the remembered `task_dir` as the output directory/path argument if the platform tool supports one.
+2. The Excel must end up under the Step 0 task output directory.
+3. If the tool returns a file path outside `task_dir`, call `scripts/task_outputs.py` `ensure_file_in_task_dir(source_path, task_dir)` and use the copied path.
+4. If the tool returns an invalid or missing path, rerun it with `task_dir` if supported; otherwise stop and report that the standard-table Excel output path is invalid.
+5. Store the final in-`task_dir` Excel path in session state and batch summary.
+
 ## Validate Standard Table
 
 Call `validate_standard_table` with:
@@ -99,7 +109,7 @@ Do not offer an ignore/continue option.
 ## Standard-Table Correction
 
 - Auto-fix path: propose deterministic, reversible corrections for `standard_table.json` or, if mapping is the root cause, `subject_mapping.json` followed by rerunning conversion.
-- Standard-table Excel path: call `standard_table_to_excel`; this is terminal viewing/manual review because there is no standard-table Excel-to-JSON tool.
+- Standard-table Excel path: call `standard_table_to_excel` and follow the Standard-Table Excel Output rules above; this is terminal viewing/manual review because there is no standard-table Excel-to-JSON tool.
 - Re-upload path: restart from OCR.
 
 Continue to final Excel output only after `validate_standard_table` passes.

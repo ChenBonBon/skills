@@ -127,7 +127,9 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 ### 7. 输出标准表 Excel
 
-标准表校验通过后，调用 `standard_table_to_excel`。
+标准表校验通过后，调用 `standard_table_to_excel`。如果该工具支持输出目录/输出路径参数，传入已记住的 `task_dir`，确保 Excel 生成到任务输出目录下。
+
+工具返回后，校验 Excel 文件路径。如果文件不在 `task_dir` 下，使用 `scripts/task_outputs.py` 的 `ensure_file_in_task_dir(...)` 将其复制到 `task_dir`，然后记住并汇报复制后的路径。如果返回路径缺失或文件不存在，使用 `task_dir`/输出目录参数重新调用 `standard_table_to_excel`（若工具支持）；否则停止并说明标准表 Excel 输出路径无效。
 
 对于单个报表组，成功时只输出：
 

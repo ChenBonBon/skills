@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -91,3 +92,37 @@ def save_ocr_results(
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(raw_ocr_responses, f, ensure_ascii=False, indent=2)
     return output_path
+
+
+def ensure_file_in_task_dir(
+    source_path: str,
+    task_dir: str,
+    filename: Optional[str] = None,
+) -> str:
+    """
+    Ensure an externally generated file is available under task_dir.
+
+    If source_path is already inside task_dir, return it unchanged.
+    Otherwise copy it into task_dir and return the copied path.
+    """
+    if not source_path:
+        raise ValueError("source_path must be non-empty")
+    if not task_dir:
+        raise ValueError("task_dir must be non-empty")
+
+    source_abs = os.path.abspath(source_path)
+    task_abs = os.path.abspath(task_dir)
+    if not os.path.isfile(source_abs):
+        raise FileNotFoundError(f"source file does not exist: {source_path}")
+
+    os.makedirs(task_abs, exist_ok=True)
+    if os.path.commonpath([source_abs, task_abs]) == task_abs:
+        return source_abs
+
+    target_name = filename or os.path.basename(source_abs)
+    if not target_name:
+        raise ValueError("target filename must be non-empty")
+    target_path = os.path.join(task_abs, target_name)
+    if os.path.abspath(target_path) != source_abs:
+        shutil.copy2(source_abs, target_path)
+    return target_path
