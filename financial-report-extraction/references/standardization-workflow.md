@@ -83,6 +83,36 @@ Pass/fail detection:
 - Extract abnormal items from fields such as `异常数据`, `异常项`, `errors`, `issues`, `failed_items`, or `details`.
 - If the return shape is unclear, show a manual-confirmation table with top-level keys and stop.
 
+## Standard-Mapping Retry Before User Choice
+
+Run this retry flow once per statement group after the first `validate_standard_table` failure, before showing the Standard-Table Failure Response. Do not run it when the first validation passes. Do not loop indefinitely.
+
+Use these artifact meanings:
+
+- `subject_mapping_v1`: the mapping that produced the first failed `standard_table_v1`
+- `standard_table_v1`: the first converted standard table
+- `subject_mapping_v2`: an independently regenerated full subject mapping
+- `standard_table_v2`: the standard table converted from `subject_mapping_v2`
+- `subject_mapping_v3`: the final full mapping after remapping only the unstable original subjects
+- `standard_table_v3`: the standard table converted from `subject_mapping_v3`
+
+Retry steps:
+
+1. Preserve the first failed mapping/table as `subject_mapping_v1` and `standard_table_v1`. The existing unversioned `subject_mapping.json` and `standard_table.json` are v1; do not overwrite them during retry.
+2. Regenerate a full `subject_mapping_v2` from the same validated original-table JSON, runtime original subject list, report type, and mapping reference. Generate it independently; do not copy `subject_mapping_v1`.
+3. Save and convert `subject_mapping_v2` with the same `task_dir`; use a versioned file prefix such as `{file_prefix}v2_`.
+4. Save the converted result as `standard_table_v2`.
+5. Call `scripts/standard_mapping_retry.py` `analyze_mapping_retry(standard_table_v1, standard_table_v2, subject_mapping_v1, subject_mapping_v2)`.
+6. If `standard_table_diffs` is empty or `remap_original_subjects` is empty, mapping instability was not found; show the Standard-Table Failure Response based on the latest validation failure.
+7. Remap only `remap_original_subjects`. The output must be a partial JSON object whose keys exactly equal `remap_original_subjects` and whose values are valid standard subjects or `__IGNORE__`. Use the full original subject list, the mapping reference, the validation failure details, and the v1/v2 diff report as context.
+8. Call `merge_subject_mapping(subject_mapping_v1, partial_remap, remap_original_subjects)` to build `subject_mapping_v3`.
+9. Save and convert `subject_mapping_v3` with the same `task_dir`; use a versioned file prefix such as `{file_prefix}v3_`.
+10. Save the converted result as `standard_table_v3`, then call `validate_standard_table` on the `standard_table_v3` path.
+11. If `standard_table_v3` passes, make v3 the latest standard-table JSON/path and continue to Standard-Table Excel Output.
+12. If `standard_table_v3` still fails, show the Standard-Table Failure Response using the v3 validation result.
+
+When a batch group uses a group prefix such as `group_1_`, keep it in all versioned prefixes, for example `group_1_v2_` and `group_1_v3_`.
+
 ## Standard-Table Failure Response
 
 Output exactly:
@@ -108,7 +138,7 @@ Do not offer an ignore/continue option.
 
 ## Standard-Table Correction
 
-- Auto-fix path: propose deterministic, reversible corrections for `standard_table.json` or, if mapping is the root cause, `subject_mapping.json` followed by rerunning conversion.
+- Auto-fix path: propose deterministic, reversible corrections for the latest `standard_table.json` or, if mapping is the root cause, the latest subject mapping followed by rerunning conversion. If the automatic standard-mapping retry already produced v3, base this path on v3.
 - Standard-table Excel path: call `standard_table_to_excel` and follow the Standard-Table Excel Output rules above; this is terminal viewing/manual review because there is no standard-table Excel-to-JSON tool.
 - Re-upload path: restart from OCR.
 

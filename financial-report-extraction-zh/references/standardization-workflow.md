@@ -83,6 +83,36 @@ prepare_standard_mapping_files(
 - 从 `异常数据`、`异常项`、`errors`、`issues`、`failed_items` 或 `details` 等字段提取异常项。
 - 如果返回形状不清楚，展示包含顶层 key 的人工确认表并停止。
 
+## 展示用户选项前的标准映射重试
+
+第一次 `validate_standard_table` 失败后，先针对该报表组执行一次本流程，再展示“标准表校验失败”响应。第一次校验通过时不要执行。本流程每个报表组最多执行一次，不要无限循环。
+
+产物含义：
+
+- `subject_mapping_v1`: 生成第一次失败的 `standard_table_v1` 的映射
+- `standard_table_v1`: 第一次转换得到的标准表
+- `subject_mapping_v2`: 独立重新生成的完整科目映射
+- `standard_table_v2`: 由 `subject_mapping_v2` 转换得到的标准表
+- `subject_mapping_v3`: 只重映射不稳定原始科目后得到的最终完整映射
+- `standard_table_v3`: 由 `subject_mapping_v3` 转换得到的标准表
+
+重试步骤：
+
+1. 将第一次失败的映射和标准表保存为 `subject_mapping_v1` 和 `standard_table_v1`。已有的未加版本前缀 `subject_mapping.json` 和 `standard_table.json` 就是 v1；重试过程中不要覆盖它们。
+2. 基于同一个已验证原始表 JSON、运行时原始科目列表、报表类型和映射参考，重新生成完整的 `subject_mapping_v2`。这次映射必须独立生成，不要复制 `subject_mapping_v1`。
+3. 在同一个 `task_dir` 下保存并转换 `subject_mapping_v2`；使用带版本的 `file_prefix`，例如 `{file_prefix}v2_`。
+4. 将转换结果保存为 `standard_table_v2`。
+5. 调用 `scripts/standard_mapping_retry.py` 的 `analyze_mapping_retry(standard_table_v1, standard_table_v2, subject_mapping_v1, subject_mapping_v2)`。
+6. 如果 `standard_table_diffs` 为空，或 `remap_original_subjects` 为空，说明未发现映射不稳定问题；基于最新校验失败结果展示“标准表校验失败”响应。
+7. 只针对 `remap_original_subjects` 重新映射。输出必须是 partial JSON object，key 必须与 `remap_original_subjects` 完全一致，value 必须是有效标准科目或 `__IGNORE__`。上下文需要包含完整原始科目列表、映射参考、校验失败详情、以及 v1/v2 差异报告。
+8. 调用 `merge_subject_mapping(subject_mapping_v1, partial_remap, remap_original_subjects)` 得到 `subject_mapping_v3`。
+9. 在同一个 `task_dir` 下保存并转换 `subject_mapping_v3`；使用带版本的 `file_prefix`，例如 `{file_prefix}v3_`。
+10. 将转换结果保存为 `standard_table_v3`，然后对 `standard_table_v3` 的文件路径调用 `validate_standard_table`。
+11. 如果 `standard_table_v3` 校验通过，将 v3 作为最新标准表 JSON/路径，并继续输出标准表 Excel。
+12. 如果 `standard_table_v3` 仍未通过，使用 v3 的校验结果展示“标准表校验失败”响应。
+
+如果批量报表组已有 `group_1_` 这样的组前缀，版本前缀必须保留组前缀，例如 `group_1_v2_` 和 `group_1_v3_`。
+
 ## 标准表失败响应
 
 严格输出：
@@ -108,7 +138,7 @@ C. 重新上传更清晰文件
 
 ## 标准表修正
 
-- 自动修正路径：对 `standard_table.json` 提出确定、可逆的修正；如果根因是映射，则修正 `subject_mapping.json` 后重新运行转换。
+- 自动修正路径：对最新的 `standard_table.json` 提出确定、可逆的修正；如果根因是映射，则修正最新的 subject mapping 后重新运行转换。如果自动标准映射重试已经产生 v3，则基于 v3 继续处理。
 - 标准表 Excel 路径：调用 `standard_table_to_excel`，并遵循上方“标准表 Excel 输出”规则；这是终端查看/人工复核路径，因为没有标准表 Excel 转 JSON 工具。
 - 重新上传路径：从 OCR 重新开始。
 

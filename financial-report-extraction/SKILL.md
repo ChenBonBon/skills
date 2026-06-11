@@ -123,7 +123,7 @@ Generate a subject mapping JSON whose keys exactly match the runtime original su
 
 Save the `convert_to_standard_table` result with `scripts/save_standard_table.py` in the existing `task_dir`; the saved file must contain only the `standard_table` object, not the outer `rpt_type`/`standard_table` wrapper. Then call `validate_standard_table`.
 
-If validation passes, continue automatically. If it fails, read `references/standardization-workflow.md`, show the required failure response, and wait for the user to choose a correction path.
+If validation passes, continue automatically. If it fails, read `references/standardization-workflow.md` and run the standard-mapping retry flow once before showing user choices. If the retry produces `standard_table_v3` and validation passes, continue automatically. If validation still fails, show the required failure response and wait for the user to choose a correction path.
 
 ### 7. Output Standard Table Excel
 
@@ -151,6 +151,7 @@ Preserve these values across turns while this skill is active:
 - editable original-table Excel path, if generated
 - task output directory
 - `original_validated.json`, `subject_mapping.json`, and `standard_table.json` paths
+- standard-mapping retry artifacts: `subject_mapping_v1/v2/v3`, `standard_table_v1/v2/v3`, diff report, and latest validated standard-table path
 - latest standard-table JSON and validation result
 
 When the user says `继续`, `已保存`, `保存好了`, or `编辑好了`, continue from the remembered Excel path. Only ask for a path if session state and result-directory lookup both fail.

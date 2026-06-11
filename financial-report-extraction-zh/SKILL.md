@@ -123,7 +123,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 使用 `scripts/save_standard_table.py` 将 `convert_to_standard_table` 的结果保存到已有的 `task_dir`；落盘文件必须只包含 `standard_table` 对象本身，不能包含外层 `rpt_type`/`standard_table` 包装。然后调用 `validate_standard_table`。
 
-如果校验通过，自动继续。若校验失败，读取 `references/standardization-workflow.md`，展示规定的失败响应，并等待用户选择修正路径。
+如果校验通过，自动继续。若校验失败，读取 `references/standardization-workflow.md`，并先执行一次标准映射重试流程，再展示用户选项。如果重试得到的 `standard_table_v3` 校验通过，则自动继续。如果仍未通过，展示规定的失败响应，并等待用户选择修正路径。
 
 ### 7. 输出标准表 Excel
 
@@ -151,6 +151,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 - 已生成的可编辑原始表 Excel 路径（如有）
 - 任务输出目录
 - `original_validated.json`、`subject_mapping.json` 和 `standard_table.json` 的路径
+- 标准映射重试产物：`subject_mapping_v1/v2/v3`、`standard_table_v1/v2/v3`、差异报告、以及最新通过校验的标准表路径
 - 最新标准表 JSON 和校验结果
 
 当用户说 `继续`、`已保存`、`保存好了` 或 `编辑好了` 时，从已记住的 Excel 路径继续。只有在会话状态和结果目录查找都失败时，才向用户询问路径。
