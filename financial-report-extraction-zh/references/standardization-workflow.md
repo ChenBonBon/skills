@@ -57,7 +57,7 @@ prepare_standard_mapping_files(
 - `subject_mapping_json_file_path`: 返回的科目映射 JSON 路径
 - `rpt_type`: `1` 表示 `资产负债表`，`2` 表示 `利润表` / `损益表`，`3` 表示 `现金流量表`
 
-使用 `scripts/save_standard_table.py` 保存返回的标准表 JSON，并传入同一个 `task_dir` 和同一个组 `file_prefix`（如有）。
+使用 `scripts/save_standard_table.py` 保存返回的标准表 JSON，并传入同一个 `task_dir` 和同一个组 `file_prefix`（如有）。如果 `convert_to_standard_table` 返回 `{"rpt_type": ..., "standard_table": {...}}` 这样的外层对象，只落盘 `standard_table` 的 value。
 
 ## 标准表 Excel 输出
 

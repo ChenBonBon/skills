@@ -57,7 +57,7 @@ Use returned paths directly for `convert_to_standard_table`:
 - `subject_mapping_json_file_path`: returned subject-mapping JSON path
 - `rpt_type`: `1` for `资产负债表`, `2` for `利润表` / `损益表`, `3` for `现金流量表`
 
-Save the returned standard-table JSON with `scripts/save_standard_table.py` using the same `task_dir` and the same group `file_prefix`, if any.
+Save the returned standard-table JSON with `scripts/save_standard_table.py` using the same `task_dir` and the same group `file_prefix`, if any. If `convert_to_standard_table` returns an outer object such as `{"rpt_type": ..., "standard_table": {...}}`, persist only the value of `standard_table`.
 
 ## Standard-Table Excel Output
 

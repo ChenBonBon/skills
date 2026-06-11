@@ -121,7 +121,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 ### 6. 标准表校验
 
-使用 `scripts/save_standard_table.py` 将 `convert_to_standard_table` 的结果保存到已有的 `task_dir`，然后调用 `validate_standard_table`。
+使用 `scripts/save_standard_table.py` 将 `convert_to_standard_table` 的结果保存到已有的 `task_dir`；落盘文件必须只包含 `standard_table` 对象本身，不能包含外层 `rpt_type`/`standard_table` 包装。然后调用 `validate_standard_table`。
 
 如果校验通过，自动继续。若校验失败，读取 `references/standardization-workflow.md`，展示规定的失败响应，并等待用户选择修正路径。
 

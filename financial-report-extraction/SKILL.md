@@ -121,7 +121,7 @@ Generate a subject mapping JSON whose keys exactly match the runtime original su
 
 ### 6. Standard-Table Validation
 
-Save the `convert_to_standard_table` result with `scripts/save_standard_table.py` in the existing `task_dir`, then call `validate_standard_table`.
+Save the `convert_to_standard_table` result with `scripts/save_standard_table.py` in the existing `task_dir`; the saved file must contain only the `standard_table` object, not the outer `rpt_type`/`standard_table` wrapper. Then call `validate_standard_table`.
 
 If validation passes, continue automatically. If it fails, read `references/standardization-workflow.md`, show the required failure response, and wait for the user to choose a correction path.
 
