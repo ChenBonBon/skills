@@ -94,6 +94,7 @@ If the user explicitly asks only for JSON extraction, output only the bare JSON 
 
 - For `资产负债表` and `利润表`, read `references/reconciliation-rules.md` and run reconciliation checks.
 - For `现金流量表`, skip reconciliation in this version and treat the mapped JSON as validated.
+- Reconciliation is zero-tolerance: any non-zero formula difference, including `0.01`, `0.02`, or `0.03`, is a failure. Do not pass reconciliation by treating a difference as OCR noise or rounding.
 
 If reconciliation passes, continue automatically. If it fails, read `references/correction-workflow.md`, show the required failure response, and wait for the user to choose a correction path.
 

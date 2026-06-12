@@ -94,6 +94,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 - 对 `资产负债表` 和 `利润表`，读取 `references/reconciliation-rules.md` 并执行勾稽校验。
 - 对 `现金流量表`，本版本跳过勾稽校验，并将映射得到的 JSON 视为已校验。
+- 勾稽校验采用零容差：任何非零公式差额，包括 `0.01`、`0.02` 或 `0.03`，都必须判定为失败。不得将差额解释为 OCR 噪声或四舍五入后继续判定通过。
 
 如果勾稽通过，自动继续。若勾稽失败，读取 `references/correction-workflow.md`，展示规定的失败响应，并等待用户选择修正路径。
 
