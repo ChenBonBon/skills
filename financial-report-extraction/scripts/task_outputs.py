@@ -126,3 +126,23 @@ def ensure_file_in_task_dir(
     if os.path.abspath(target_path) != source_abs:
         shutil.copy2(source_abs, target_path)
     return target_path
+
+
+def ensure_excel_file_in_task_dir(
+    source_path: str,
+    task_dir: str,
+    filename: Optional[str] = None,
+) -> str:
+    """
+    Ensure an Excel output file is available under task_dir.
+
+    JSON files are intermediate artifacts and must never be reported as Excel.
+    """
+    ext = os.path.splitext(source_path)[1].lower()
+    if ext not in {".xlsx", ".xls"}:
+        raise ValueError(f"expected an Excel file path, got: {source_path}")
+    copied_path = ensure_file_in_task_dir(source_path, task_dir, filename)
+    copied_ext = os.path.splitext(copied_path)[1].lower()
+    if copied_ext not in {".xlsx", ".xls"}:
+        raise ValueError(f"expected copied path to be an Excel file, got: {copied_path}")
+    return copied_path

@@ -128,9 +128,9 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 ### 7. 输出标准表 Excel
 
-标准表校验通过后，调用 `standard_table_to_excel`。如果该工具支持输出目录/输出路径参数，传入已记住的 `task_dir`，确保 Excel 生成到任务输出目录下。
+标准表校验通过后，使用最新已通过校验的标准表 JSON 路径调用 `standard_table_to_excel`。如果该工具支持输出目录/输出路径参数，传入已记住的 `task_dir`，确保 Excel 生成到任务输出目录下。标准表 JSON 路径只作为该工具的入参，绝不能作为 Excel 输出路径展示。
 
-工具返回后，校验 Excel 文件路径。如果文件不在 `task_dir` 下，使用 `scripts/task_outputs.py` 的 `ensure_file_in_task_dir(...)` 将其复制到 `task_dir`，然后记住并汇报复制后的路径。如果返回路径缺失或文件不存在，使用 `task_dir`/输出目录参数重新调用 `standard_table_to_excel`（若工具支持）；否则停止并说明标准表 Excel 输出路径无效。
+工具返回后，校验 Excel 文件路径。最终展示的文件路径必须以 `.xlsx` 或 `.xls` 结尾；`standard_table.json` 这类 `.json` 路径即使已通过校验也不是 Excel，必须判定为无效。如果文件不在 `task_dir` 下，使用 `scripts/task_outputs.py` 的 `ensure_excel_file_in_task_dir(...)` 将其复制到 `task_dir`，然后记住并汇报复制后的 Excel 路径。如果返回路径缺失、不是 Excel 路径或文件不存在，使用 `task_dir`/输出目录参数重新调用 `standard_table_to_excel`（若工具支持）；否则停止并说明标准表 Excel 输出路径无效。
 
 对于单个报表组，成功时只输出：
 
@@ -153,6 +153,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 - 任务输出目录
 - `original_validated.json`、`subject_mapping.json` 和 `standard_table.json` 的路径
 - 标准映射重试产物：`subject_mapping_v1/v2/v3`、`standard_table_v1/v2/v3`、差异报告、以及最新通过校验的标准表路径
+- `standard_table_to_excel` 生成的最终标准表 Excel 路径（`.xlsx`/`.xls`）
 - 最新标准表 JSON 和校验结果
 
 当用户说 `继续`、`已保存`、`保存好了` 或 `编辑好了` 时，从已记住的 Excel 路径继续。只有在会话状态和结果目录查找都失败时，才向用户询问路径。

@@ -63,11 +63,13 @@ prepare_standard_mapping_files(
 
 当标准表校验通过后调用 `standard_table_to_excel`，或用户选择生成标准表 Excel 查看时：
 
-1. 传入 `standard_table_json_file_path`、`rpt_type`；如果平台工具支持输出目录/输出路径参数，同时传入已记住的 `task_dir`。
-2. Excel 最终必须位于步骤 0 的任务输出目录下。
-3. 如果工具返回的文件路径不在 `task_dir` 下，调用 `scripts/task_outputs.py` 的 `ensure_file_in_task_dir(source_path, task_dir)`，并使用复制后的路径。
-4. 如果工具返回路径缺失或文件不存在，使用 `task_dir` 重新调用该工具（若支持）；否则停止并说明标准表 Excel 输出路径无效。
-5. 将最终位于 `task_dir` 下的 Excel 路径保存到会话状态和批量汇总中。
+1. 传入最新已通过校验的 `standard_table_json_file_path`、`rpt_type`；如果平台工具支持输出目录/输出路径参数，同时传入已记住的 `task_dir`。
+2. `standard_table_json_file_path` 只能作为工具入参。不要把 `standard_table.json`、`v2_standard_table.json` 或 `v3_standard_table.json` 标记或展示为 Excel 输出。
+3. Excel 最终必须位于步骤 0 的任务输出目录下。
+4. 工具返回的输出路径必须是以 `.xlsx` 或 `.xls` 结尾的 Excel 文件路径。任何 `.json` 路径在这一步都无效，即使它指向已通过校验的标准表 JSON。
+5. 如果工具返回的文件路径不在 `task_dir` 下，调用 `scripts/task_outputs.py` 的 `ensure_excel_file_in_task_dir(source_path, task_dir)`，并使用复制后的 Excel 路径。
+6. 如果工具返回路径缺失、文件不存在、或不是 Excel 路径，使用 `task_dir` 重新调用该工具（若支持）；否则停止并说明标准表 Excel 输出路径无效。
+7. 将最终位于 `task_dir` 下的 Excel 路径保存到会话状态和批量汇总中。向用户展示输出文件路径时，只展示这个 Excel 路径。
 
 ## 校验标准表
 
@@ -108,7 +110,7 @@ prepare_standard_mapping_files(
 8. 调用 `merge_subject_mapping(subject_mapping_v1, partial_remap, remap_original_subjects)` 得到 `subject_mapping_v3`。
 9. 在同一个 `task_dir` 下保存并转换 `subject_mapping_v3`；使用带版本的 `file_prefix`，例如 `{file_prefix}v3_`。
 10. 将转换结果保存为 `standard_table_v3`，然后对 `standard_table_v3` 的文件路径调用 `validate_standard_table`。
-11. 如果 `standard_table_v3` 校验通过，将 v3 作为最新标准表 JSON/路径，并继续输出标准表 Excel。
+11. 如果 `standard_table_v3` 校验通过，将 v3 作为最新标准表 JSON/路径，并继续输出标准表 Excel。v3 JSON 路径只能作为 `standard_table_to_excel` 入参，不要作为最终输出文件展示。
 12. 如果 `standard_table_v3` 仍未通过，使用 v3 的校验结果展示“标准表校验失败”响应。
 
 如果批量报表组已有 `group_1_` 这样的组前缀，版本前缀必须保留组前缀，例如 `group_1_v2_` 和 `group_1_v3_`。

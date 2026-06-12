@@ -128,9 +128,9 @@ If validation passes, continue automatically. If it fails, read `references/stan
 
 ### 7. Output Standard Table Excel
 
-After standard-table validation passes, call `standard_table_to_excel`. If the tool accepts an output directory/path argument, pass the remembered `task_dir` so the Excel is generated under the task output directory.
+After standard-table validation passes, call `standard_table_to_excel` with the latest validated standard-table JSON path. If the tool accepts an output directory/path argument, pass the remembered `task_dir` so the Excel is generated under the task output directory. The standard-table JSON path is only an input to this tool; never report it as the Excel output.
 
-After the tool returns, verify the Excel file path. If the file is outside `task_dir`, use `scripts/task_outputs.py` `ensure_file_in_task_dir(...)` to copy it into `task_dir`, then remember and report the copied path. If the returned path is missing or does not exist, rerun `standard_table_to_excel` with `task_dir`/output directory if supported; otherwise stop and report that the Excel output path is invalid.
+After the tool returns, verify the Excel file path. The final reported file path must end with `.xlsx` or `.xls`; a `.json` path such as `standard_table.json` is invalid even if validation passed. If the file is outside `task_dir`, use `scripts/task_outputs.py` `ensure_excel_file_in_task_dir(...)` to copy it into `task_dir`, then remember and report the copied Excel path. If the returned path is missing, is not an Excel path, or does not exist, rerun `standard_table_to_excel` with `task_dir`/output directory if supported; otherwise stop and report that the Excel output path is invalid.
 
 For a single statement group, on success output exactly:
 
@@ -153,6 +153,7 @@ Preserve these values across turns while this skill is active:
 - task output directory
 - `original_validated.json`, `subject_mapping.json`, and `standard_table.json` paths
 - standard-mapping retry artifacts: `subject_mapping_v1/v2/v3`, `standard_table_v1/v2/v3`, diff report, and latest validated standard-table path
+- final standard-table Excel path (`.xlsx`/`.xls`) after `standard_table_to_excel`
 - latest standard-table JSON and validation result
 
 When the user says `继续`, `已保存`, `保存好了`, or `编辑好了`, continue from the remembered Excel path. Only ask for a path if session state and result-directory lookup both fail.

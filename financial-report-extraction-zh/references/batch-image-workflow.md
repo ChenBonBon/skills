@@ -158,4 +158,6 @@ group_2_standard_table.json
 | 1 | B.png,A.png | 资产负债表 | 标准表校验通过 | ... |
 | 2 | C.png | 利润表 | 标准表校验通过 | ... |
 
+`标准表 Excel` 列必须填写 `standard_table_to_excel` 返回或复制后的最终 `.xlsx`/`.xls` 路径；不要填写 `standard_table.json` 或任何其他 JSON 路径。
+
 如果批次暂停在失败组，不要输出最终批量完成汇总。

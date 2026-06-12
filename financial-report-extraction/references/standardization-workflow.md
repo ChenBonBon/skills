@@ -63,11 +63,13 @@ Save the returned standard-table JSON with `scripts/save_standard_table.py` usin
 
 When calling `standard_table_to_excel` after validation passes or when the user chooses standard-table Excel viewing:
 
-1. Pass `standard_table_json_file_path`, `rpt_type`, and the remembered `task_dir` as the output directory/path argument if the platform tool supports one.
-2. The Excel must end up under the Step 0 task output directory.
-3. If the tool returns a file path outside `task_dir`, call `scripts/task_outputs.py` `ensure_file_in_task_dir(source_path, task_dir)` and use the copied path.
-4. If the tool returns an invalid or missing path, rerun it with `task_dir` if supported; otherwise stop and report that the standard-table Excel output path is invalid.
-5. Store the final in-`task_dir` Excel path in session state and batch summary.
+1. Pass the latest validated `standard_table_json_file_path`, `rpt_type`, and the remembered `task_dir` as the output directory/path argument if the platform tool supports one.
+2. Treat `standard_table_json_file_path` only as input. Never label or report `standard_table.json`, `v2_standard_table.json`, or `v3_standard_table.json` as Excel output.
+3. The Excel must end up under the Step 0 task output directory.
+4. The returned output path must be an Excel file path ending in `.xlsx` or `.xls`. Any `.json` path is invalid for this step, even when it points to the validated standard-table JSON.
+5. If the tool returns a file path outside `task_dir`, call `scripts/task_outputs.py` `ensure_excel_file_in_task_dir(source_path, task_dir)` and use the copied Excel path.
+6. If the tool returns an invalid, missing, non-existent, or non-Excel path, rerun it with `task_dir` if supported; otherwise stop and report that the standard-table Excel output path is invalid.
+7. Store the final in-`task_dir` Excel path in session state and batch summary. When showing an output file path to the user, show this Excel path only.
 
 ## Validate Standard Table
 
@@ -108,7 +110,7 @@ Retry steps:
 8. Call `merge_subject_mapping(subject_mapping_v1, partial_remap, remap_original_subjects)` to build `subject_mapping_v3`.
 9. Save and convert `subject_mapping_v3` with the same `task_dir`; use a versioned file prefix such as `{file_prefix}v3_`.
 10. Save the converted result as `standard_table_v3`, then call `validate_standard_table` on the `standard_table_v3` path.
-11. If `standard_table_v3` passes, make v3 the latest standard-table JSON/path and continue to Standard-Table Excel Output.
+11. If `standard_table_v3` passes, make v3 the latest standard-table JSON/path and continue to Standard-Table Excel Output. Use the v3 JSON path only as input to `standard_table_to_excel`; do not report it as the final output file.
 12. If `standard_table_v3` still fails, show the Standard-Table Failure Response using the v3 validation result.
 
 When a batch group uses a group prefix such as `group_1_`, keep it in all versioned prefixes, for example `group_1_v2_` and `group_1_v3_`.

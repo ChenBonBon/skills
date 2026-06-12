@@ -158,4 +158,6 @@ After all groups succeed, output a final summary table:
 | 1 | B.png,A.png | 资产负债表 | 标准表校验通过 | ... |
 | 2 | C.png | 利润表 | 标准表校验通过 | ... |
 
+The `标准表 Excel` column must contain the final `.xlsx`/`.xls` path returned or copied after `standard_table_to_excel`; never put `standard_table.json` or any other JSON path in this column.
+
 If the batch pauses on a failed group, do not output the final batch-complete summary.
