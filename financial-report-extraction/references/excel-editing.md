@@ -4,7 +4,7 @@ Use this reference only when the user chooses platform Excel editing after recon
 
 ## Generate Editable Excel
 
-Call `scripts/json_to_excel.py` with the Step 2 JSON serialized as a string:
+Call `scripts/json_to_excel.py` with the Step 4 JSON serialized as a string:
 
 ```python
 json_data_to_excel(
@@ -18,7 +18,7 @@ json_data_to_excel(
 
 - `vlm_text`: the mapped original-table JSON serialized with Chinese text preserved.
 - `original_filename`: uploaded file name, used to derive the Excel file name.
-- `json_out_dir`: the Step 0 task output directory, `workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/`.
+- `json_out_dir`: the Step 1 task output directory, `workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/`.
 - `sheet_name`: prefer the mapped `表名`.
 - `abnormal_items`: reconciliation abnormal rows, preferably as dictionaries.
 

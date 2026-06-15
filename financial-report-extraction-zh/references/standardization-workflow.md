@@ -4,7 +4,7 @@
 
 ## 任务目录
 
-使用步骤 0 创建的任务输出目录：
+使用步骤 1 创建的任务输出目录：
 
 ```text
 workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
@@ -59,13 +59,13 @@ prepare_standard_mapping_files(
 
 使用 `scripts/save_standard_table.py` 保存返回的标准表 JSON，并传入同一个 `task_dir` 和同一个组 `file_prefix`（如有）。如果 `convert_to_standard_table` 返回 `{"rpt_type": ..., "standard_table": {...}}` 这样的外层对象，只落盘 `standard_table` 的 value。
 
-## 标准表 Excel 输出
+## 最终标准表 Excel 输出
 
-当标准表校验通过后调用 `standard_table_to_excel`，或用户选择生成标准表 Excel 查看时：
+仅在 `validate_standard_table` 通过后使用本流程：
 
 1. 传入最新已通过校验的 `standard_table_json_file_path`、`rpt_type`；如果平台工具支持输出目录/输出路径参数，同时传入已记住的 `task_dir`。
 2. `standard_table_json_file_path` 只能作为工具入参。不要把 `standard_table.json`、`v2_standard_table.json` 或 `v3_standard_table.json` 标记或展示为 Excel 输出。
-3. Excel 最终必须位于步骤 0 的任务输出目录下。
+3. Excel 最终必须位于步骤 1 的任务输出目录下。
 4. 工具返回的输出路径必须是以 `.xlsx` 或 `.xls` 结尾的 Excel 文件路径。任何 `.json` 路径在这一步都无效，即使它指向已通过校验的标准表 JSON。
 5. 如果工具返回的文件路径不在 `task_dir` 下，调用 `scripts/task_outputs.py` 的 `ensure_excel_file_in_task_dir(source_path, task_dir)`，并使用复制后的 Excel 路径。
 6. 如果工具返回路径缺失、文件不存在、或不是 Excel 路径，使用 `task_dir` 重新调用该工具（若支持）；否则停止并说明标准表 Excel 输出路径无效。
@@ -141,7 +141,7 @@ C. 重新上传更清晰文件
 ## 标准表修正
 
 - 自动修正路径：对最新的 `standard_table.json` 提出确定、可逆的修正；如果根因是映射，则修正最新的 subject mapping 后重新运行转换。如果自动标准映射重试已经产生 v3，则基于 v3 继续处理。
-- 标准表 Excel 路径：调用 `standard_table_to_excel`，并遵循上方“标准表 Excel 输出”规则；这是终端查看/人工复核路径，因为没有标准表 Excel 转 JSON 工具。
+- 标准表 Excel 查看路径：仅为终端查看/人工复核调用 `standard_table_to_excel`，因为没有标准表 Excel 转 JSON 工具。该结果只能标记为查看用 Excel，不能标记为最终输出；只有在 `validate_standard_table` 通过后，才能继续最终输出。
 - 重新上传路径：从 OCR 重新开始。
 
 只有在 `validate_standard_table` 通过后，才继续最终 Excel 输出。

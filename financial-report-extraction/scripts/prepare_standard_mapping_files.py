@@ -68,7 +68,7 @@ def prepare_standard_mapping_files(
     file_prefix: str = "",
 ) -> Dict[str, str]:
     """
-    Write Step 5 input JSON files under one task directory.
+    Write Step 7 input JSON files under one task directory.
 
     :param validated_json: final original-table JSON after validation passes
     :param subject_mapping: mapping JSON object from original subject to standard subject

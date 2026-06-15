@@ -29,7 +29,7 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 
 ## 工作流
 
-### 0. 创建任务输出目录
+### 1. 创建任务输出目录
 
 在第一次写入文件之前，使用 `scripts/task_outputs.py` 创建一个全局任务输出目录：
 
@@ -48,7 +48,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 - 单文件上传时，用该文件名在 OCR 前创建 `task_dir`。
 - 多文件上传时，如果平台提供批次名，使用批次名创建 `task_dir`；否则使用第一个上传源文件名。不要等分组确认后才创建 `task_dir`，因为原始 OCR 必须在模型有机会总结压缩前就落盘。
 
-### 1. OCR
+### 2. OCR
 
 1. 确认上传内容包含图片或 PDF 文件。
 2. 对每个上传文件先调用 `ocr`，再进行后续提取。
@@ -59,7 +59,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 如果用户只要求 OCR，汇总识别内容后停止。
 
-### 1.5. 规范化批量 OCR 结果
+### 3. 规范化批量 OCR 结果
 
 如果用户上传了多个文件，或上传的 PDF 的 OCR 文本包含多个报表单元，读取 `references/batch-image-workflow.md`。
 
@@ -78,7 +78,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 对于多文件上传或包含多张报表的单个 PDF，在用户确认分组后，使用 `scripts/prepare_batch_manifest.py` 创建 `batch_manifest.json`。传入已有的 `task_dir` 作为 `batch_dir`；不要创建单独的批量目录。
 
-### 2. 将报表 `vlm_text` 映射为原始 JSON
+### 4. 将报表 `vlm_text` 映射为原始 JSON
 
 按顺序逐个处理已确认的报表组。对每个组，按用户确认的组内原始顺序，用换行符拼接该组的内层 `vlm_text` 数组。
 
@@ -90,7 +90,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 如果用户明确只要求提取 JSON，只输出裸 JSON object，然后停止。
 
-### 3. 原始表勾稽校验
+### 5. 原始表勾稽校验
 
 - 对 `资产负债表` 和 `利润表`，读取 `references/reconciliation-rules.md` 并执行勾稽校验。
 - 对 `现金流量表`，本版本跳过勾稽校验，并将映射得到的 JSON 视为已校验。
@@ -98,7 +98,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 如果勾稽通过，自动继续。若勾稽失败，读取 `references/correction-workflow.md`，展示规定的失败响应，并等待用户选择修正路径。
 
-### 4. 修正循环
+### 6. 修正循环
 
 仅在勾稽失败后使用。
 
@@ -106,9 +106,9 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 - Excel 编辑路径：读取 `references/excel-editing.md`，用 `scripts/json_to_excel.py` 生成可编辑 Excel，记住其路径；用户表示平台编辑已保存后，再用 `scripts/excel_to_json.py` 转回 JSON。
 - 重新上传路径：从 OCR 重新开始。
 
-每次修正后，重新执行步骤 3。勾稽失败时不得继续。
+每次修正后，重新执行步骤 5。勾稽失败时不得继续。
 
-### 5. 标准科目映射
+### 7. 标准科目映射
 
 原始表 JSON 校验通过后，读取 `references/standardization-workflow.md`。
 
@@ -120,23 +120,25 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 
 生成 subject mapping JSON，其 key 必须与运行时原始科目列表完全一致。然后带着已有的 `task_dir` 调用 `scripts/prepare_standard_mapping_files.py`，再调用系统工具 `convert_to_standard_table`。
 
-### 6. 标准表校验
+### 8. 标准表校验
 
 使用 `scripts/save_standard_table.py` 将 `convert_to_standard_table` 的结果保存到已有的 `task_dir`；落盘文件必须只包含 `standard_table` 对象本身，不能包含外层 `rpt_type`/`standard_table` 包装。然后调用 `validate_standard_table`。
 
 如果校验通过，自动继续。若校验失败，读取 `references/standardization-workflow.md`，并先执行一次标准映射重试流程，再展示用户选项。如果重试得到的 `standard_table_v3` 校验通过，则自动继续。如果仍未通过，展示规定的失败响应，并等待用户选择修正路径。
 
-### 7. 输出标准表 Excel
+### 9. 输出标准表 Excel
 
 标准表校验通过后，使用最新已通过校验的标准表 JSON 路径调用 `standard_table_to_excel`。如果该工具支持输出目录/输出路径参数，传入已记住的 `task_dir`，确保 Excel 生成到任务输出目录下。标准表 JSON 路径只作为该工具的入参，绝不能作为 Excel 输出路径展示。
 
 工具返回后，校验 Excel 文件路径。最终展示的文件路径必须以 `.xlsx` 或 `.xls` 结尾；`standard_table.json` 这类 `.json` 路径即使已通过校验也不是 Excel，必须判定为无效。如果文件不在 `task_dir` 下，使用 `scripts/task_outputs.py` 的 `ensure_excel_file_in_task_dir(...)` 将其复制到 `task_dir`，然后记住并汇报复制后的 Excel 路径。如果返回路径缺失、不是 Excel 路径或文件不存在，使用 `task_dir`/输出目录参数重新调用 `standard_table_to_excel`（若工具支持）；否则停止并说明标准表 Excel 输出路径无效。
 
-对于单个报表组，成功时只输出：
+对于单个报表组，成功时输出：
 
 **标准表校验通过**
 
-对于多个报表组，每个组成功后输出带上下文的成功行，并继续处理下一组。所有组成功后，输出 `references/batch-image-workflow.md` 中定义的批量汇总。
+标准表 Excel：`{final_standard_table_excel_path}`
+
+对于多个报表组，每个组成功后输出带上下文的成功行，记住该组最终标准表 Excel 路径，并继续处理下一组。所有组成功后，输出 `references/batch-image-workflow.md` 中定义的批量汇总。
 
 ## 会话状态
 
@@ -165,7 +167,7 @@ workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
 - 不要把处理后的 OCR 数据写入 `ocr_results.json`；该文件只保存 OCR 工具的原始返回。
 - 不要保存 `...`、`see original OCR`、`truncated` 或 `omitted` 这类 OCR 占位文本。
 - 除非平台工具要求自己的输出路径，否则不要把任务文件写到任务输出目录之外。
-- 步骤 0 后不要创建第二个带时间戳的输出目录；复用已记住的 `task_dir`。
+- 步骤 1 后不要创建第二个带时间戳的输出目录；复用已记住的 `task_dir`。
 - 在用户确认推断出的分组和顺序前，不要处理多个报表组。
 - 本版本不要把一张图片拆分成多个报表单元；请用户拆分图片，或确认只处理其中一张报表。
 - 对 PDF，仅使用 `vlm_text` 中明确的报表边界拆分多个报表单元，并在处理前请用户确认拆分。

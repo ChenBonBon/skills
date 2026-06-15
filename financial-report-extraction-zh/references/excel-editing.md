@@ -4,7 +4,7 @@
 
 ## 生成可编辑 Excel
 
-调用 `scripts/json_to_excel.py`，将步骤 2 的 JSON 序列化为字符串：
+调用 `scripts/json_to_excel.py`，将步骤 4 的 JSON 序列化为字符串：
 
 ```python
 json_data_to_excel(
@@ -18,7 +18,7 @@ json_data_to_excel(
 
 - `vlm_text`：映射得到的原始表 JSON，序列化时保留中文文本。
 - `original_filename`：上传文件名，用于派生 Excel 文件名。
-- `json_out_dir`：步骤 0 的任务输出目录，即 `workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/`。
+- `json_out_dir`：步骤 1 的任务输出目录，即 `workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/`。
 - `sheet_name`：优先使用映射得到的 `表名`。
 - `abnormal_items`：勾稽异常行，优先使用字典形式。
 

@@ -18,7 +18,7 @@ PDFs may contain multiple statement units. Split a PDF into statement groups onl
 ## OCR All Files First
 
 1. Call `ocr` for every uploaded image/PDF before deciding groups.
-2. Immediately save the exact OCR tool return objects to `ocr_results.json` in the Step 0 task output directory.
+2. Immediately save the exact OCR tool return objects to `ocr_results.json` in the Step 1 task output directory.
 3. Do not save summarized, normalized, shortened, reconstructed, or placeholder OCR content.
 4. Preserve each raw OCR response and the `ocr_results.json` path in session state.
 5. Use only each response's `vlm_text` string array for downstream grouping and extraction.
@@ -87,7 +87,7 @@ After confirmation, use the confirmed group order to build `statement_vlm_texts`
 
 ## Batch Manifest
 
-For any multi-file upload or single PDF containing multiple statements, use the Step 0 task output directory:
+For any multi-file upload or single PDF containing multiple statements, use the Step 1 task output directory:
 
 ```text
 workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
