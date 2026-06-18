@@ -14,11 +14,11 @@
 4. 写文件前校验：无缺失/多余 key；key 保留原文；value 是非空字符串，不能是 `null`、数组、对象、解释、置信度或组合文本。格式失败时重生成一次，仍失败则停止并说明。
 5. 调用 `scripts/prepare_standard_mapping_files.py`，传入 `validated_json`、`subject_mapping`、原文件名、既有 `task_dir`、可选 `standard_subjects` 和 `file_prefix`。
 6. 调用平台 `convert_to_standard_table`：参数 `original_table_json_file_path` 使用脚本返回的 `original_table_json_file_path`（或同一个文件路径 `original_validated_json_file_path`），`subject_mapping_json_file_path` 使用脚本返回的 `subject_mapping_json_file_path`，`rpt_type` 为报表类型（`资产负债表`=1，`利润表`/`损益表`=2，`现金流量表`=3）。
-7. 用 `scripts/save_standard_table.py` 原样保存转换结果。
+7. 用 `scripts/save_standard_table.py` 原样保存转换结果；调用 `save_standard_table` 时传入 `expected_rpt_type=rpt_type`。保存出的 `standard_table.json` 必须是合法 JSON，形如 `{"rpt_type": 2, "standard_table": {"主营业务收入": {"本月数": 1475058.16, "本年累计数": 15200134.15}}}`。该脚本会校验外层结构、写入文件、再读回确认文件内容仍等于转换结果。若保存/结构校验失败，用同一个未修改的转换结果重试保存一次；仍失败则调用一次 `save_repaired_standard_table(conversion_output, rpt_type, task_dir, file_prefix)` 生成修正后的 `standard_table.json`。该修复只能补齐/修正 wrapper，不得改写科目、列名或金额。若修复保存也失败，则停止并说明标准表 JSON 无效，不要继续调用 `validate_standard_table`。
 
 ## 校验标准表
 
-调用 `validate_standard_table(standard_table_json_file_path)`。
+调用平台校验前，该路径必须已经通过 `scripts/save_standard_table.py` 的保存/读回校验。然后调用 `validate_standard_table(standard_table_json_file_path)`。
 
 通过/失败判断：
 
@@ -41,12 +41,12 @@
 
 1. 保留 v1；不要覆盖未加版本前缀文件。
 2. 基于同一份已验证原始 JSON、原始科目列表、报表类型和映射参考，重新生成完整 `subject_mapping_v2`。不要复制 v1。
-3. 用 `{file_prefix}v2_` 保存并转换 v2，保存为 `standard_table_v2`。
+3. 用 `{file_prefix}v2_` 保存并转换 v2，保存为 `standard_table_v2`，同样遵守本地保存/结构校验失败只重试一次、仍无效则修复保存一次的规则。
 4. 调用 `scripts/standard_mapping_retry.py:analyze_mapping_retry(standard_table_v1, standard_table_v2, subject_mapping_v1, subject_mapping_v2)`。
 5. 如果没有 `standard_table_diffs` 或没有 `remap_original_subjects`，说明未发现映射不稳定，展示标准表失败响应。
 6. 只重映射 `remap_original_subjects`。partial JSON 的 key 必须完全等于该列表，value 必须是有效标准科目或 `__IGNORE__`。上下文包含完整科目列表、映射参考、校验失败详情和 v1/v2 差异。
 7. 调用 `merge_subject_mapping(subject_mapping_v1, partial_remap, remap_original_subjects)` 得到 v3。
-8. 用 `{file_prefix}v3_` 保存并转换 v3，然后校验 `standard_table_v3`。
+8. 用 `{file_prefix}v3_` 保存并转换 v3，同样遵守本地保存/结构校验失败只重试一次、仍无效则修复保存一次的规则；然后校验 `standard_table_v3`。
 9. v3 通过则作为最新标准表 JSON 路径并进入 Excel 输出；v3 仍失败则用 v3 校验详情展示失败响应。
 
 批量前缀同时保留组和版本：`group_1_v2_`、`group_1_v3_`。

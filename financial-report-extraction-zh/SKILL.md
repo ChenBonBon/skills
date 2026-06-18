@@ -33,7 +33,7 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 
 生成 key 完全等于运行时原始科目列表的完整 subject mapping。调用 `prepare_standard_mapping_files.py`，再调用平台 `convert_to_standard_table`。
 
-8. **标准表校验**：用 `save_standard_table.py` 原样保存 `convert_to_standard_table` 的返回值。调用 `validate_standard_table`。首次失败时先执行 `standardization-workflow.md` 的一次性标准映射重试；v3 仍失败才展示失败选项并等待。
+8. **标准表校验**：用 `save_standard_table.py` 原样保存 `convert_to_standard_table` 的返回值；调用 `save_standard_table` 时传入 `expected_rpt_type=rpt_type`。该脚本会校验必需的 `{"rpt_type": ..., "standard_table": ...}` JSON 外层结构并读回文件确认。若本地保存/结构校验失败，用同一个未修改的转换返回值重存一次；仍失败则用同一个转换返回值和同一个 `rpt_type` 调用一次 `save_repaired_standard_table(...)` 生成合规 wrapper，只有修复保存也失败时才停止。之后再调用 `validate_standard_table`。首次 `validate_standard_table` 失败时先执行 `standardization-workflow.md` 的一次性标准映射重试；v3 仍失败才展示失败选项并等待。
 
 9. **标准表 Excel**：标准表校验通过后，用最新通过的标准表 JSON 路径调用平台 `standard_table_to_excel`；支持时传入 `task_dir`。这是最终标准表 Excel 转换唯一允许的工具；本步骤不得调用平台 `xlsx` skill/tool、通用 spreadsheet 生成器或通用 Excel 写入工具。如果 `standard_table_to_excel` 不可用，或无法返回有效 Excel 路径，停止并说明必需工具不可用/返回无效，不要用其他 Excel 工具替代。JSON 路径只作入参，最终输出必须是 `.xlsx`/`.xls`，`.json` 一律无效。外部路径用 `ensure_excel_file_in_task_dir(...)` 复制回 `task_dir`。单组成功输出必须包含 `标准表校验通过` 和 `标准表 Excel：{final_standard_table_excel_path}`；批量输出见 `batch-image-workflow.md`。
 

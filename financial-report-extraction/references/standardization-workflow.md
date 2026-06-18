@@ -14,11 +14,11 @@ Reuse the Step 1 `task_dir` for every JSON/Excel artifact. Never create a second
 4. Validate before writing: no missing/extra keys; keys preserve source text; values are non-empty strings, never `null`, arrays, objects, explanations, confidence scores, or combined text. Regenerate once on format failure; stop if still invalid.
 5. Call `scripts/prepare_standard_mapping_files.py` with `validated_json`, `subject_mapping`, original filename, existing `task_dir`, optional `standard_subjects`, and `file_prefix`.
 6. Call platform `convert_to_standard_table` with `original_table_json_file_path` set to the returned `original_table_json_file_path` (or the returned `original_validated_json_file_path`, which is the same file), `subject_mapping_json_file_path` set to the returned `subject_mapping_json_file_path`, and `rpt_type` (`资产负债表`=1, `利润表`/`损益表`=2, `现金流量表`=3).
-7. Save the conversion output unchanged with `scripts/save_standard_table.py`.
+7. Save the conversion output unchanged with `scripts/save_standard_table.py`; pass `expected_rpt_type=rpt_type` to `save_standard_table`. The saved `standard_table.json` must be valid JSON shaped like `{"rpt_type": 2, "standard_table": {"主营业务收入": {"本月数": 1475058.16, "本年累计数": 15200134.15}}}`. The script validates the wrapper, writes the file, reads it back, and confirms it still equals the conversion output. If the save/shape check fails, retry this save step once with the same unchanged conversion output. If it still fails, call `save_repaired_standard_table(conversion_output, rpt_type, task_dir, file_prefix)` once to generate a corrected `standard_table.json`; this repair may only add/fix the wrapper and must not rewrite subject names, columns, or amounts. If the repair save also fails, stop and report invalid standard-table JSON; do not call `validate_standard_table` yet.
 
 ## Validate Standard Table
 
-Call `validate_standard_table(standard_table_json_file_path)`.
+Before calling the platform validator, the path must already have passed `scripts/save_standard_table.py` save/readback validation. Then call `validate_standard_table(standard_table_json_file_path)`.
 
 Pass/fail detection:
 
@@ -41,12 +41,12 @@ Steps:
 
 1. Preserve v1; do not overwrite unversioned files.
 2. Regenerate full `subject_mapping_v2` from the same validated original JSON, subject list, report type, and mapping reference. Do not copy v1.
-3. Save/convert v2 using prefix `{file_prefix}v2_`; save as `standard_table_v2`.
+3. Save/convert v2 using prefix `{file_prefix}v2_`; save as `standard_table_v2` with the same one-time local save/shape retry rule, then the same one-time repair save if still invalid.
 4. Call `scripts/standard_mapping_retry.py:analyze_mapping_retry(standard_table_v1, standard_table_v2, subject_mapping_v1, subject_mapping_v2)`.
 5. If no `standard_table_diffs` or no `remap_original_subjects`, mapping instability was not found; show the standard-table failure response.
 6. Remap only `remap_original_subjects`. The partial JSON keys must exactly equal that list; values must be valid standard subjects or `__IGNORE__`. Use the full subject list, mapping reference, validation failure, and v1/v2 diff as context.
 7. Call `merge_subject_mapping(subject_mapping_v1, partial_remap, remap_original_subjects)` to build v3.
-8. Save/convert v3 using prefix `{file_prefix}v3_`; validate `standard_table_v3`.
+8. Save/convert v3 using prefix `{file_prefix}v3_` with the same one-time local save/shape retry rule, then the same one-time repair save if still invalid; validate `standard_table_v3`.
 9. If v3 passes, make v3 the latest standard-table JSON path and continue to Excel output. If v3 fails, show the failure response using v3 validation details.
 
 For batch prefixes, keep both group and version: `group_1_v2_`, `group_1_v3_`.
