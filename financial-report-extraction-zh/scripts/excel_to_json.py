@@ -59,9 +59,10 @@ def xlsx_to_json(
             header = [str(cell).strip() if cell else "" for cell in row]
             if "本月数" in header or "本月" in "".join(header):
                 has_monthly = True
-            if "本年累计数" in header or "本年累计" in "".join(header):
+            joined_header = "".join(header)
+            if "本年累计数" in header or "本年累计" in joined_header or "本期金额" in header:
                 has_yearly = True
-            if "年初数" in header or "年初" in "".join(header):
+            if "年初数" in header or "年初" in joined_header:
                 has_yearly = True  # 复用变量名表示有第二列
             continue
 

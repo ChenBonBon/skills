@@ -3,9 +3,9 @@ import os
 from typing import Any, Dict, List, Optional
 
 try:
-    from task_outputs import create_task_output_dir, safe_stem
+    from task_outputs import create_task_output_dir, safe_stem, task_dir_path
 except ImportError:
-    from .task_outputs import create_task_output_dir, safe_stem
+    from .task_outputs import create_task_output_dir, safe_stem, task_dir_path
 
 
 def prepare_batch_manifest(
@@ -14,6 +14,8 @@ def prepare_batch_manifest(
     batch_stem: Optional[str] = None,
     batch_dir: Optional[str] = None,
     timestamp: Optional[str] = None,
+    username: Optional[str] = None,
+    workspace_root: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a batch manifest for multi-file financial statement extraction.
@@ -75,7 +77,11 @@ def prepare_batch_manifest(
             normalized_groups[0]["source_files"][0],
             result_root=result_root,
             timestamp=timestamp,
+            username=username,
+            workspace_root=workspace_root,
         )["task_dir"]
+    else:
+        batch_dir = task_dir_path(batch_dir)
 
     os.makedirs(batch_dir, exist_ok=True)
     for group in normalized_groups:

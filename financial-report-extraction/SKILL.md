@@ -5,175 +5,54 @@ description: Extract, validate, standardize, and output standard-table Excel fil
 
 # 财报提取
 
-## Core Contract
+## Scope
 
-Use this skill for one or more uploaded images or PDFs containing financial-statement tables:
+Use for uploaded financial-statement images/PDFs: `资产负债表`, `利润表`/`损益表`, `现金流量表`. Supported inputs include one or more images, single/multi-page PDFs, and PDFs containing multiple statement units.
 
-- 资产负债表
-- 利润表 / 损益表
-- 现金流量表
-
-Current version supports:
-
-- single-page PDF -> one statement
-- multi-page PDF -> one statement
-- multi-page PDF -> multiple statements
-- one image per statement
-- multiple images/files per statement
-
-Images are not split into multiple statement units in this iteration. PDFs may be split into multiple statement groups based only on `vlm_text`.
-
-Always call the system tool named `ocr` first. The OCR output structure is stable; downstream extraction uses only `ocr.vlm_text`.
-
-If `vlm_text` is missing, is not a string array, or cannot be joined into readable content, stop and ask the user to re-upload a clearer file or confirm manually. Do not fall back to other OCR fields.
+Always call platform `ocr` first. Downstream extraction uses only `ocr.vlm_text`; if it is missing, not a string array, or unreadable after joining, stop for clearer upload/manual confirmation. Never infer from image/PDF metadata, filenames, or non-`vlm_text` OCR fields.
 
 ## Workflow
 
-### 1. Create Task Output Directory
+1. **Task directory**: before OCR, import helpers by adding this skill's `scripts/` directory to `sys.path`, then use `from task_outputs import create_task_output_dir, save_ocr_results`. Do not import `from scripts.task_outputs` unless the current working directory is the skill root. Call `create_task_output_dir(...)` once, passing platform `username` if available. Store the return object as `task_output`, then set `task_dir = task_output["task_dir"]`. Reuse this string `task_dir` for every JSON/Excel output. Default with username: `workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/`.
 
-Create one global task output directory with `scripts/task_outputs.py` before the first file is written:
+2. **OCR**: call `ocr` for every uploaded file. Immediately append each raw OCR return object to the raw list and save that exact unmodified list to `ocr_results.json` with `save_ocr_results(...)`. No summarizing, redaction, normalization, or placeholders. If the user only asked for OCR, summarize and stop.
 
-```python
-create_task_output_dir(original_filename, result_root=None, timestamp=None)
-```
+3. **Batch/PDF grouping**: for multiple uploads or PDFs with multiple statement units, read `references/batch-image-workflow.md`. Group/split/order by OCR text, not upload order. Ask for user confirmation when multiple groups are inferred. Create `batch_manifest.json` in the existing `task_dir`.
 
-Use the returned `task_dir` for every file written during this run. The default path is:
+4. **Original JSON**: process confirmed groups serially. Join each group's `vlm_text` segments with newlines, identify statement type from explicit text, then map to `references/target-json-schema.md`. Preserve visible amounts; use `""` only for truly blank/missing cells. If a visible amount cannot be safely assigned, ask for manual confirmation. JSON-only requests return the bare JSON object and stop.
 
-```text
-workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}/
-```
+5. **Original reconciliation**: for `资产负债表` and `利润表`, read `references/reconciliation-rules.md`; `现金流量表` skips this step. Reconciliation is zero-tolerance: any non-zero difference, including `0.01`, fails. On failure, read `references/correction-workflow.md`, show the required response, and wait.
 
-Use the system timestamp once, then reuse the same `task_dir`; do not create a new timestamped directory in later steps.
+6. **Correction loop**: after reconciliation failure only. Auto-fix requires a deterministic, reversible plan and user confirmation. Excel editing uses `references/excel-editing.md`, `scripts/json_to_excel.py`, then `scripts/excel_to_json.py` after the user says the platform edit is saved. Re-upload restarts from OCR. Rerun Step 5 after every correction.
 
-- For a single-file upload, create `task_dir` before OCR with that file name.
-- For multi-file uploads, create `task_dir` before OCR with the platform batch name if available; otherwise use the first uploaded source file name. Do not wait for grouping confirmation to create `task_dir`, because raw OCR must be persisted before model summarization can occur.
+7. **Standard subject mapping**: after original JSON validates, read `references/standardization-workflow.md` and exactly one mapping reference:
 
-### 2. OCR
+- `资产负债表`: `references/standard-subject-mapping-balance-sheet.md`
+- `利润表`/`损益表`: `references/standard-subject-mapping-income-statement.md`
+- `现金流量表`: `references/standard-subject-mapping-cash-flow.md`
 
-1. Confirm the upload contains image or PDF files.
-2. Call `ocr` for every uploaded file before downstream extraction.
-3. Read only each OCR response's `vlm_text`.
-4. Immediately after each OCR call, append the exact OCR tool return object to the raw OCR response list and save that unmodified list to `ocr_results.json` in `task_dir` with `scripts/task_outputs.py`.
-5. Do not summarize, redact, shorten, normalize, reconstruct, or replace OCR content with placeholders such as `see original OCR`; `ocr_results.json` must contain the original OCR tool output only.
-6. Preserve every raw OCR response and the `ocr_results.json` path in session state.
+Generate a full subject mapping whose keys exactly match the runtime original subject list. Call `scripts/prepare_standard_mapping_files.py`, then platform `convert_to_standard_table`.
 
-If the user asked only for OCR, summarize the recognized content and stop.
+8. **Standard validation**: save the `convert_to_standard_table` return unchanged with `scripts/save_standard_table.py`. Call `validate_standard_table`. On first failure, run the one-time standard-mapping retry in `references/standardization-workflow.md`; if v3 still fails, show the required failure options and wait.
 
-### 3. Normalize Batch OCR Results
-
-If the user uploaded multiple files, or uploaded a PDF whose OCR text contains multiple statement units, read `references/batch-image-workflow.md`.
-
-Group, split, and order statement units based on OCR text, not upload order. Ask the user to confirm the inferred groups and order when there are multiple groups. After confirmation, normalize OCR results into:
-
-```json
-{
-  "statement_vlm_texts": [
-    ["报表1第1段", "报表1第2段"],
-    ["报表2第1段"]
-  ]
-}
-```
-
-For a single-image statement, `statement_vlm_texts` has one inner array containing that image's `vlm_text`. For a single PDF that contains one statement, it has one inner array containing that PDF statement's `vlm_text`. For a PDF that contains multiple statements, split the PDF's `vlm_text` into one inner array per statement unit.
-
-For multi-file uploads or multi-statement PDFs, create `batch_manifest.json` with `scripts/prepare_batch_manifest.py` after the user confirms groups. Pass the existing `task_dir` as `batch_dir`; do not create a separate batch directory.
-
-### 4. Map Statement `vlm_text` To Original JSON
-
-Process each confirmed statement group serially. For each group, join its inner `vlm_text` array in original confirmed group order with newline separators.
-
-Map only from the joined statement `vlm_text`. Do not infer from the image/PDF, file name, OCR metadata, or non-`vlm_text` fields.
-
-Identify the statement type from explicit text, then produce the matching original-table JSON schema. See `references/target-json-schema.md` only when mapping or validating this JSON shape.
-
-Do not leave amount fields empty when the corresponding subject row has visible amount text in `vlm_text`. Use `""` only for truly missing or blank source cells; if visible amounts cannot be assigned safely, ask for manual confirmation.
-
-If the user explicitly asks only for JSON extraction, output only the bare JSON object and stop.
-
-### 5. Original-Table Reconciliation
-
-- For `资产负债表` and `利润表`, read `references/reconciliation-rules.md` and run reconciliation checks.
-- For `现金流量表`, skip reconciliation in this version and treat the mapped JSON as validated.
-- Reconciliation is zero-tolerance: any non-zero formula difference, including `0.01`, `0.02`, or `0.03`, is a failure. Do not pass reconciliation by treating a difference as OCR noise or rounding.
-
-If reconciliation passes, continue automatically. If it fails, read `references/correction-workflow.md`, show the required failure response, and wait for the user to choose a correction path.
-
-### 6. Correction Loop
-
-Use this only after reconciliation fails.
-
-- Auto-fix path: propose a deterministic correction plan and apply it only after user confirmation.
-- Excel editing path: read `references/excel-editing.md`, generate editable Excel with `scripts/json_to_excel.py`, remember its path, then convert it back with `scripts/excel_to_json.py` after the user says the platform edit is saved.
-- Re-upload path: restart from OCR.
-
-After any correction, rerun Step 5. Do not continue while reconciliation fails.
-
-### 7. Standard Subject Mapping
-
-After original-table JSON is validated, read `references/standardization-workflow.md`.
-
-Use exactly one mapping reference:
-
-- `资产负债表` -> `references/standard-subject-mapping-balance-sheet.md`
-- `利润表` / `损益表` -> `references/standard-subject-mapping-income-statement.md`
-- `现金流量表` -> `references/standard-subject-mapping-cash-flow.md`
-
-Generate a subject mapping JSON whose keys exactly match the runtime original subject list. Then call `scripts/prepare_standard_mapping_files.py` with the existing `task_dir`, and call the system tool `convert_to_standard_table`.
-
-### 8. Standard-Table Validation
-
-Save the `convert_to_standard_table` result with `scripts/save_standard_table.py` in the existing `task_dir`; the saved file must contain only the `standard_table` object, not the outer `rpt_type`/`standard_table` wrapper. Then call `validate_standard_table`.
-
-If validation passes, continue automatically. If it fails, read `references/standardization-workflow.md` and run the standard-mapping retry flow once before showing user choices. If the retry produces `standard_table_v3` and validation passes, continue automatically. If validation still fails, show the required failure response and wait for the user to choose a correction path.
-
-### 9. Output Standard Table Excel
-
-After standard-table validation passes, call `standard_table_to_excel` with the latest validated standard-table JSON path. If the tool accepts an output directory/path argument, pass the remembered `task_dir` so the Excel is generated under the task output directory. The standard-table JSON path is only an input to this tool; never report it as the Excel output.
-
-After the tool returns, verify the Excel file path. The final reported file path must end with `.xlsx` or `.xls`; a `.json` path such as `standard_table.json` is invalid even if validation passed. If the file is outside `task_dir`, use `scripts/task_outputs.py` `ensure_excel_file_in_task_dir(...)` to copy it into `task_dir`, then remember and report the copied Excel path. If the returned path is missing, is not an Excel path, or does not exist, rerun `standard_table_to_excel` with `task_dir`/output directory if supported; otherwise stop and report that the Excel output path is invalid.
-
-For a single statement group, on success output:
-
-**标准表校验通过**
-
-标准表 Excel：`{final_standard_table_excel_path}`
-
-For multiple statement groups, output a contextual success line for each group, remember each group's final standard-table Excel path, and continue to the next group. After all groups succeed, output the batch summary defined in `references/batch-image-workflow.md`.
+9. **Standard Excel**: after standard validation passes, call platform `standard_table_to_excel` with the latest validated standard-table JSON path; pass `task_dir` as output dir/path if supported. This is the only allowed tool for final standard-table Excel conversion. Do not call the platform `xlsx` skill/tool, spreadsheet generators, or generic Excel writers for this step. If `standard_table_to_excel` is unavailable or fails to return a valid Excel path, stop and report that the required tool is unavailable/invalid instead of substituting another Excel tool. The JSON path is input only. Final reported output must be `.xlsx`/`.xls`; reject `.json`. Use `ensure_excel_file_in_task_dir(...)` for outside paths. Single-group success output must include `标准表校验通过` and `标准表 Excel：{final_standard_table_excel_path}`; batches use `references/batch-image-workflow.md`.
 
 ## Session State
 
-Preserve these values across turns while this skill is active:
+Preserve: raw OCR responses, `ocr_results.json`, `statement_vlm_texts`, batch manifest/groups/current index/completed groups, original uploaded filename, mapped original JSON, reconciliation failures/correction plan, editable original Excel path, `task_dir`, `original_validated.json`, `subject_mapping.json`, `standard_table.json`, standard retry artifacts v1/v2/v3, final standard Excel path, and latest standard validation result.
 
-- raw OCR response and joined `vlm_text`
-- `ocr_results.json` path
-- `statement_vlm_texts`
-- batch manifest path, batch groups, current group index, and completed groups for multi-file uploads
-- mapped original-table JSON
-- original uploaded file name
-- reconciliation failures and correction plan, if any
-- editable original-table Excel path, if generated
-- task output directory
-- `original_validated.json`, `subject_mapping.json`, and `standard_table.json` paths
-- standard-mapping retry artifacts: `subject_mapping_v1/v2/v3`, `standard_table_v1/v2/v3`, diff report, and latest validated standard-table path
-- final standard-table Excel path (`.xlsx`/`.xls`) after `standard_table_to_excel`
-- latest standard-table JSON and validation result
+When the user says `继续`, `已保存`, `保存好了`, or `编辑好了`, continue from remembered Excel/session paths; ask for a path only if state and result-directory lookup fail.
 
-When the user says `继续`, `已保存`, `保存好了`, or `编辑好了`, continue from the remembered Excel path. Only ask for a path if session state and result-directory lookup both fail.
+## Guardrails
 
-## Global Guardrails
-
-- Do not invent OCR text, financial figures, dates, units, rows, columns, or mappings.
-- Do not use OCR fields other than `vlm_text` for extraction.
-- Do not write processed OCR data to `ocr_results.json`; it is only for exact OCR tool returns.
-- Do not save placeholder OCR text such as `...`, `see original OCR`, `truncated`, or `omitted`.
-- Do not write task files outside the task output directory unless a platform tool requires its own output path.
-- Do not create a second timestamped output directory after Step 1; reuse the remembered `task_dir`.
-- Do not process multiple statement groups before the user confirms inferred groups and order.
-- Do not split one image into multiple statement units in this iteration; ask the user to split the image or confirm one statement to process.
-- For PDFs, split multiple statement units only from `vlm_text` using explicit statement boundaries, and ask the user to confirm the split before processing.
-- Do not rely on upload order for batch grouping or group order.
-- Do not rerun completed groups when a later batch group pauses or is replaced.
-- For re-upload replacement in a batch, require the user to specify which report group is being replaced unless there is exactly one paused current group.
-- Do not continue after failed reconciliation or failed standard-table validation.
-- Do not wrap successful JSON-only output in Markdown.
-- Do not tell the user to download, upload, re-upload, or send back a generated Excel when the platform editing flow applies.
+- Do not invent OCR text, figures, dates, units, rows, columns, mappings, or corrections.
+- Do not use OCR fields other than `vlm_text`; never write processed OCR to `ocr_results.json`.
+- Do not create a second timestamped output dir after Step 1.
+- Do not split one image into multiple statement units in this version.
+- For PDFs, split only from explicit `vlm_text` boundaries and ask confirmation before processing.
+- Do not process multiple groups before confirmation; do not rely on upload order; do not rerun completed groups when a later group pauses/replaces.
+- For batch re-upload replacement, require the target report group unless exactly one current group is paused.
+- Do not continue after failed reconciliation or failed standard validation.
+- Do not wrap JSON-only success output in Markdown.
+- Do not use the `xlsx` skill/tool or any generic spreadsheet/Excel writer to produce final standard-table Excel; only `standard_table_to_excel` is valid for that output.
+- Do not ask users to download/upload/send back generated Excel when platform editing applies.

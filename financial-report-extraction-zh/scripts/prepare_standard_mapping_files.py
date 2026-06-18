@@ -3,17 +3,28 @@ import os
 from typing import Any, Dict, Iterable, Optional, Set
 
 try:
-    from task_outputs import create_task_output_dir, safe_stem
+    from task_outputs import create_task_output_dir, safe_stem, task_dir_path
 except ImportError:
-    from .task_outputs import create_task_output_dir, safe_stem
+    from .task_outputs import create_task_output_dir, safe_stem, task_dir_path
 
 
 def _resolve_task_dir(
-    original_filename: str, result_root: Optional[str] = None, task_dir: Optional[str] = None
+    original_filename: str,
+    result_root: Optional[str] = None,
+    task_dir: Optional[str] = None,
+    username: Optional[str] = None,
+    workspace_root: Optional[str] = None,
+    timestamp: Optional[str] = None,
 ) -> str:
     if task_dir:
-        return task_dir
-    return create_task_output_dir(original_filename, result_root=result_root)["task_dir"]
+        return task_dir_path(task_dir)
+    return create_task_output_dir(
+        original_filename,
+        result_root=result_root,
+        username=username,
+        workspace_root=workspace_root,
+        timestamp=timestamp,
+    )["task_dir"]
 
 
 def _extract_subjects(validated_json: Dict[str, Any]) -> Set[str]:
@@ -66,6 +77,9 @@ def prepare_standard_mapping_files(
     task_dir: Optional[str] = None,
     standard_subjects: Optional[Iterable[str]] = None,
     file_prefix: str = "",
+    username: Optional[str] = None,
+    workspace_root: Optional[str] = None,
+    timestamp: Optional[str] = None,
 ) -> Dict[str, str]:
     """
     Write Step 7 input JSON files under one task directory.
@@ -77,7 +91,11 @@ def prepare_standard_mapping_files(
     :param task_dir: explicit task directory override
     :param standard_subjects: optional iterable of allowed standard subject names
     :param file_prefix: optional file prefix for multi-statement batches
-    :return: paths for task_dir, original_validated_json_file_path, subject_mapping_json_file_path
+    :param username: optional platform username used to derive workspace/{username}/result
+    :param workspace_root: optional workspace root used with username
+    :param timestamp: optional timestamp shared with the task output directory
+    :return: paths for task_dir, original_validated_json_file_path,
+        original_table_json_file_path, subject_mapping_json_file_path
     """
     if not isinstance(validated_json, dict):
         raise TypeError("validated_json must be a JSON object")
@@ -88,7 +106,14 @@ def prepare_standard_mapping_files(
     _validate_subject_mapping(validated_json, subject_mapping, standard_subjects)
 
     safe_stem(original_filename)
-    resolved_task_dir = _resolve_task_dir(original_filename, result_root, task_dir)
+    resolved_task_dir = _resolve_task_dir(
+        original_filename,
+        result_root,
+        task_dir,
+        username=username,
+        workspace_root=workspace_root,
+        timestamp=timestamp,
+    )
     os.makedirs(resolved_task_dir, exist_ok=True)
 
     original_path = os.path.join(resolved_task_dir, f"{file_prefix}original_validated.json")
@@ -103,5 +128,6 @@ def prepare_standard_mapping_files(
     return {
         "task_dir": resolved_task_dir,
         "original_validated_json_file_path": original_path,
+        "original_table_json_file_path": original_path,
         "subject_mapping_json_file_path": mapping_path,
     }

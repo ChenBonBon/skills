@@ -24,11 +24,32 @@ def current_timestamp() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
+def task_dir_path(task_dir: Any) -> str:
+    if isinstance(task_dir, dict):
+        task_dir = task_dir.get("task_dir")
+    if isinstance(task_dir, os.PathLike):
+        task_dir = os.fspath(task_dir)
+    if not isinstance(task_dir, str) or not task_dir:
+        raise TypeError("task_dir must be a path string or a dict containing task_dir")
+    return task_dir
+
+
+def _default_result_root(username: Optional[str] = None, workspace_root: Optional[str] = None) -> str:
+    root = workspace_root or os.getcwd()
+    if username:
+        username = str(username).strip()
+        if username:
+            return os.path.join(root, username, "result")
+    return os.path.join(root, "result")
+
+
 def create_task_output_dir(
     original_filename: str,
     result_root: Optional[str] = None,
     timestamp: Optional[str] = None,
-    task_dir: Optional[str] = None,
+    task_dir: Optional[Any] = None,
+    username: Optional[str] = None,
+    workspace_root: Optional[str] = None,
 ) -> Dict[str, str]:
     """
     Create or reuse the task output directory for one extraction run.
@@ -37,6 +58,7 @@ def create_task_output_dir(
     workspace/{username}/result/{original_filename_stem}_{yyyyMMdd_HHmmss}
     """
     if task_dir:
+        task_dir = task_dir_path(task_dir)
         os.makedirs(task_dir, exist_ok=True)
         return {
             "task_dir": task_dir,
@@ -45,7 +67,7 @@ def create_task_output_dir(
         }
 
     if result_root is None:
-        result_root = os.path.join(os.getcwd(), "result")
+        result_root = _default_result_root(username=username, workspace_root=workspace_root)
     if timestamp is None:
         timestamp = current_timestamp()
 
@@ -74,7 +96,7 @@ def _contains_placeholder(value: Any) -> bool:
 
 def save_ocr_results(
     raw_ocr_responses: List[Any],
-    task_dir: str,
+    task_dir: Any,
     filename: str = "ocr_results.json",
 ) -> str:
     """
@@ -82,8 +104,7 @@ def save_ocr_results(
     """
     if not isinstance(raw_ocr_responses, list):
         raise TypeError("raw_ocr_responses must be a list")
-    if not task_dir:
-        raise ValueError("task_dir must be non-empty")
+    task_dir = task_dir_path(task_dir)
     if _contains_placeholder(raw_ocr_responses):
         raise ValueError("raw_ocr_responses appears summarized or redacted")
 
@@ -96,7 +117,7 @@ def save_ocr_results(
 
 def ensure_file_in_task_dir(
     source_path: str,
-    task_dir: str,
+    task_dir: Any,
     filename: Optional[str] = None,
 ) -> str:
     """
@@ -107,8 +128,7 @@ def ensure_file_in_task_dir(
     """
     if not source_path:
         raise ValueError("source_path must be non-empty")
-    if not task_dir:
-        raise ValueError("task_dir must be non-empty")
+    task_dir = task_dir_path(task_dir)
 
     source_abs = os.path.abspath(source_path)
     task_abs = os.path.abspath(task_dir)
@@ -130,7 +150,7 @@ def ensure_file_in_task_dir(
 
 def ensure_excel_file_in_task_dir(
     source_path: str,
-    task_dir: str,
+    task_dir: Any,
     filename: Optional[str] = None,
 ) -> str:
     """

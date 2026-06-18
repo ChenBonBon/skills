@@ -42,6 +42,14 @@ Output the standard table name `利润表`.
 }
 ```
 
+Income statement amount-column mapping:
+
+- Source `本月数`, `本月金额`, or `本月发生额` maps to target `本月数`.
+- Source `本年累计数`, `本年累计金额`, or `本年累计` maps to target `本年累计数`.
+- When the source table contains both `本月数` and `本期金额`, map `本期金额` to target `本年累计数`. In this layout, `本期金额` means the current reporting-period cumulative amount, while `本月数` already carries the month amount.
+- Source `上期金额`, `上年同期`, `上年累计`, or other comparative prior-period columns are auxiliary comparison columns for this schema; do not map them to `本月数` or `本年累计数`.
+- If the source has `本期金额`/`上期金额` but no `本月数`, map `本期金额` to `本年累计数` only when the title/date/header clearly indicates a year-to-date or full reporting period. If it could be a standalone current-month amount, ask for manual confirmation.
+
 ## 现金流量表
 
 ```json

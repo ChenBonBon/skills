@@ -8,9 +8,9 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 try:
-    from task_outputs import create_task_output_dir
+    from task_outputs import create_task_output_dir, task_dir_path
 except ImportError:
-    from .task_outputs import create_task_output_dir
+    from .task_outputs import create_task_output_dir, task_dir_path
 
 
 def _normalize_text(value: Any) -> str:
@@ -95,6 +95,9 @@ def json_data_to_excel(
     json_out_dir: Optional[str] = None,
     sheet_name: str = "Sheet1",
     abnormal_items: Optional[Any] = None,
+    username: Optional[str] = None,
+    workspace_root: Optional[str] = None,
+    timestamp: Optional[str] = None,
 ):
     """
     将 JSON 数据转换为 Excel 文件。
@@ -104,6 +107,9 @@ def json_data_to_excel(
     :param json_out_dir: Excel 文件输出目录，默认当前工作目录下带时间戳的 result 任务目录
     :param sheet_name: 工作表名称，默认为 "Sheet1"
     :param abnormal_items: 勾稽失败异常项列表，用于高亮涉及的科目行或金额单元格
+    :param username: optional platform username used to derive workspace/{username}/result
+    :param workspace_root: optional workspace root used with username
+    :param timestamp: optional timestamp shared with the task output directory
     """
     import json
 
@@ -112,7 +118,14 @@ def json_data_to_excel(
     original_stem = os.path.splitext(os.path.basename(original_filename))[0]
 
     if json_out_dir is None:
-        json_out_dir = create_task_output_dir(original_filename)["task_dir"]
+        json_out_dir = create_task_output_dir(
+            original_filename,
+            username=username,
+            workspace_root=workspace_root,
+            timestamp=timestamp,
+        )["task_dir"]
+    else:
+        json_out_dir = task_dir_path(json_out_dir)
 
     # 确保输出目录存在
     os.makedirs(json_out_dir, exist_ok=True)
