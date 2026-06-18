@@ -21,7 +21,7 @@ Always call platform `ocr` first. Downstream extraction uses only `ocr.vlm_text`
 
 4. **Original JSON**: process confirmed groups serially. Join each group's `vlm_text` segments with newlines, identify statement type from explicit text, then map to `references/target-json-schema.md`. Preserve visible amounts; use `""` only for truly blank/missing cells. If a visible amount cannot be safely assigned, ask for manual confirmation. JSON-only requests return the bare JSON object and stop.
 
-5. **Original reconciliation**: for `资产负债表` and `利润表`, read `references/reconciliation-rules.md`; `现金流量表` skips this step. Reconciliation is zero-tolerance: any non-zero difference, including `0.01`, fails. On failure, read `references/correction-workflow.md`, show the required response, and wait.
+5. **Original reconciliation**: for `资产负债表` and `利润表`, read `references/reconciliation-rules.md`; `现金流量表` skips this step. Reconciliation is zero-tolerance: any non-zero difference, including `0.01`, fails. On failure, run the one-time formula retry in `references/reconciliation-rules.md` only when the likely cause is formula construction error such as wrong operator or duplicated calculation. Do not retry for likely OCR errors or genuinely unbalanced source statements. If the retry still fails or is skipped, read `references/correction-workflow.md`, show the required response, and wait.
 
 6. **Correction loop**: after reconciliation failure only. Auto-fix requires a deterministic, reversible plan and user confirmation. Excel editing uses `references/excel-editing.md`, `scripts/json_to_excel.py`, then `scripts/excel_to_json.py` after the user says the platform edit is saved. Re-upload restarts from OCR. Rerun Step 5 after every correction.
 
@@ -39,7 +39,7 @@ Generate a full subject mapping whose keys exactly match the runtime original su
 
 ## Session State
 
-Preserve: raw OCR responses, `ocr_results.json`, `statement_vlm_texts`, batch manifest/groups/current index/completed groups, original uploaded filename, mapped original JSON, reconciliation failures/correction plan, editable original Excel path, `task_dir`, `original_validated.json`, `subject_mapping.json`, `standard_table.json`, standard retry artifacts v1/v2/v3, final standard Excel path, and latest standard validation result.
+Preserve: raw OCR responses, `ocr_results.json`, `statement_vlm_texts`, batch manifest/groups/current index/completed groups, original uploaded filename, mapped original JSON, reconciliation failures/correction plan/formula retry result, editable original Excel path, `task_dir`, `original_validated.json`, `subject_mapping.json`, `standard_table.json`, standard retry artifacts v1/v2/v3, final standard Excel path, and latest standard validation result.
 
 When the user says `继续`, `已保存`, `保存好了`, or `编辑好了`, continue from remembered Excel/session paths; ask for a path only if state and result-directory lookup fail.
 

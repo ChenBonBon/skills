@@ -1,6 +1,6 @@
 # Original-Table Correction Workflow
 
-Use this reference only after original-table reconciliation fails.
+Use this reference only after original-table reconciliation fails and the one-time formula retry in `references/reconciliation-rules.md` has failed, was skipped, or was not applicable. Do not use this reference immediately after the first reconciliation failure when the failure may be caused by formula construction error.
 
 ## Failure Response
 

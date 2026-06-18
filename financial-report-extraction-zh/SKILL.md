@@ -21,7 +21,7 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 
 4. **原始 JSON**：按确认后的组串行处理。每组用换行拼接 `vlm_text`，从明确文本识别报表类型，再按 `references/target-json-schema.md` 映射。可见金额必须进入对应字段；只有真实空白/缺失才用 `""`。无法安全归列时要求人工确认。用户只要 JSON 时输出裸 JSON 后停止。
 
-5. **原始表勾稽**：`资产负债表` 和 `利润表` 读取 `references/reconciliation-rules.md`；`现金流量表` 跳过。勾稽零容差：任何非零差额，包括 `0.01`，都失败。失败时读取 `references/correction-workflow.md`，展示规定响应并等待选择。
+5. **原始表勾稽**：`资产负债表` 和 `利润表` 读取 `references/reconciliation-rules.md`；`现金流量表` 跳过。勾稽零容差：任何非零差额，包括 `0.01`，都失败。失败时仅在疑似公式构造错误（如运算符错误、重复计算）时执行 `reconciliation-rules.md` 中的一次性公式重试；疑似 OCR 错误或原始表本身不平时不得重试。若重试仍失败或跳过重试，再读取 `references/correction-workflow.md`，展示规定响应并等待选择。
 
 6. **修正循环**：仅勾稽失败后使用。自动修正必须确定、可逆且经用户确认。Excel 编辑读取 `references/excel-editing.md`，用 `json_to_excel.py` 生成，用户保存后用 `excel_to_json.py` 转回。重新上传从 OCR 开始。每次修正后重跑步骤 5。
 
@@ -39,7 +39,7 @@ description: 面向上传的财务报表图片或 PDF，提取、校验、标准
 
 ## 会话状态
 
-保留：原始 OCR 响应、`ocr_results.json`、`statement_vlm_texts`、batch manifest/分组/当前组/已完成组、原始上传文件名、原始 JSON、勾稽失败和修正方案、可编辑原始表 Excel、`task_dir`、`original_validated.json`、`subject_mapping.json`、`standard_table.json`、标准映射重试 v1/v2/v3、最终标准表 Excel 路径、最新标准表校验结果。
+保留：原始 OCR 响应、`ocr_results.json`、`statement_vlm_texts`、batch manifest/分组/当前组/已完成组、原始上传文件名、原始 JSON、勾稽失败和修正方案/公式重试结果、可编辑原始表 Excel、`task_dir`、`original_validated.json`、`subject_mapping.json`、`standard_table.json`、标准映射重试 v1/v2/v3、最终标准表 Excel 路径、最新标准表校验结果。
 
 用户说 `继续`、`已保存`、`保存好了` 或 `编辑好了` 时，从已记住的 Excel/会话路径继续；只有会话状态和结果目录查找都失败时才问路径。
 
